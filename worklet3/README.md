@@ -151,6 +151,7 @@ make test
 The test suite contains tests for:
 - Event logging
 - Event Logger and Replay integration
+- End-to-end Worklet 1, 2, and 3 workflow
 - Replay Engine
 - Market Data Feed
 - Benchmarking

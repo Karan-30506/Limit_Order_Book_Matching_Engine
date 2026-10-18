@@ -46,5 +46,5 @@ private:
 };
 
 // Template definitions must be visible in every translation unit using HashMap.
-#include "./HashMap.tpp"
+#include "./Hashmap.tpp"
 #endif

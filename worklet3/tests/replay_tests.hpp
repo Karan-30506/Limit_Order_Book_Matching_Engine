@@ -3,6 +3,7 @@
 
 void runReplayEngineTests();
 void runEventLoggerReplayIntegrationTests();
+void runFullWorkflowTests();
 void runMarketDataFeedTests();
 void runBenchmarkTests();
 
