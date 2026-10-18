@@ -213,6 +213,9 @@ int main() {
     std::cout << "\nreplay integration tests:\n";
     runEventLoggerReplayIntegrationTests();
 
+    std::cout << "\nfull Worklet 1/2/3 workflow tests:\n";
+    runFullWorkflowTests();
+
 
     return 0;
 }

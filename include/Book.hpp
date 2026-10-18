@@ -1,7 +1,7 @@
 #ifndef BOOK_HPP
 #define BOOK_HPP
 #include "AVLTree.hpp"
-#include "HashMap.hpp"
+#include "Hashmap.hpp"
 #include "Order.hpp"
 
 // Resting-order storage; Worklet 2 supplies matching and crossing decisions.

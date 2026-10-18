@@ -1,14 +1,15 @@
 CXX ?= c++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -O2
-CPPFLAGS += -Iinclude -Iworklet2/include -Iworklet3/include
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+CPPFLAGS += -I$(PROJECT_ROOT)/include -I$(PROJECT_ROOT)/worklet2/include -I$(PROJECT_ROOT)/worklet3/include
 LDLIBS += -pthread
 
-BUILD_DIR ?= build
+BUILD_DIR ?= $(PROJECT_ROOT)/build
 
-LIB_SOURCES := $(wildcard src/*.cpp worklet2/src/*.cpp worklet3/src/*.cpp)
-LIB_SOURCES := $(filter-out worklet3/src/engine_benchmarks.cpp,$(LIB_SOURCES))
-TEST_MAIN := worklet3/tests/test_main.cpp
-TEST_SOURCES := $(filter-out $(TEST_MAIN),$(wildcard worklet3/tests/*.cpp))
+LIB_SOURCES := $(wildcard $(PROJECT_ROOT)/src/*.cpp $(PROJECT_ROOT)/worklet2/src/*.cpp $(PROJECT_ROOT)/worklet3/src/*.cpp)
+LIB_SOURCES := $(filter-out $(PROJECT_ROOT)/worklet3/src/engine_benchmarks.cpp,$(LIB_SOURCES))
+TEST_MAIN := $(PROJECT_ROOT)/worklet3/tests/test_main.cpp
+TEST_SOURCES := $(filter-out $(TEST_MAIN),$(wildcard $(PROJECT_ROOT)/worklet3/tests/*.cpp))
 
 .PHONY: all test clean
 
@@ -20,11 +21,11 @@ $(BUILD_DIR):
 $(BUILD_DIR)/worklet3_tests: $(TEST_MAIN) $(TEST_SOURCES) $(LIB_SOURCES) | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
-$(BUILD_DIR)/worklet3_benchmarks: worklet3/src/engine_benchmarks.cpp $(LIB_SOURCES) | $(BUILD_DIR)
+$(BUILD_DIR)/worklet3_benchmarks: $(PROJECT_ROOT)/worklet3/src/engine_benchmarks.cpp $(LIB_SOURCES) | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 test: $(BUILD_DIR)/worklet3_tests
-	./$(BUILD_DIR)/worklet3_tests
+	$(BUILD_DIR)/worklet3_tests
 
 clean:
 	rm -f $(BUILD_DIR)/worklet3_tests $(BUILD_DIR)/worklet3_benchmarks
