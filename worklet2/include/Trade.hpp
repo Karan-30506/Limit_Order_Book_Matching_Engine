@@ -1,15 +1,18 @@
+
 #ifndef TRADE_HPP
 #define TRADE_HPP
 
+#include <cstdint>
+
 struct Trade {
-    int tradeID;
+    std::uint64_t tradeID;
     int buyOrderID;
     int sellOrderID;
     int price;
     int quantity;
 
     Trade(
-        int id,
+        std::uint64_t id,
         int buyID,
         int sellID,
         int executionPrice,

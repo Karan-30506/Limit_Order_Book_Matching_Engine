@@ -1,12 +1,17 @@
+
 #ifndef MATCHING_ENGINE_HPP
 #define MATCHING_ENGINE_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "Book.hpp"
 #include "Trade.hpp"
 #include "TradeRecorder.hpp"
+#include "MatchingCore.hpp"
+#include "LimitOrderMatcher.hpp"
+#include "MarketOrderMatcher.hpp"
 
 enum class OrderType {
     Limit,
@@ -17,7 +22,14 @@ class MatchingEngine {
 private:
     Book& book;
     TradeRecorder tradeRecorder;
-    int nextTradeID;
+    std::uint64_t nextTradeID;
+
+    // One shared core for both matcher classes.
+    MatchingCore matchingCore;
+
+    // Reuse the wrappers instead of constructing them per order.
+    LimitOrderMatcher limitMatcher;
+    MarketOrderMatcher marketMatcher;
 
 public:
     explicit MatchingEngine(Book& orderBook);
