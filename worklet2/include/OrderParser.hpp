@@ -1,13 +1,14 @@
+
 #ifndef ORDER_PARSER_HPP
 #define ORDER_PARSER_HPP
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #include "Order.hpp"
 
 // Defined in MatchingEngine.hpp.
-// Keep OrderType outside the Order class.
 enum class OrderType;
 
 struct OrderRequest {
@@ -16,15 +17,31 @@ struct OrderRequest {
     Side side;
     int price;
     int quantity;
+    std::size_t requestIndex;
+    // Preserve the original values from the JSON input.
+    std::string originalType;
+    std::string originalSide;
+};
+
+struct ParserRejection {
+    std::size_t requestIndex;
+    bool hasOrderId;
+    int orderId;
+    std::string reason;
+    std::string originalRecord;
 };
 
 class OrderParser {
 public:
-    // Parses the complete file.
-    // On failure, requests is cleared and error explains the problem.
+    // Returns false only if the file cannot be read or the
+    // complete JSON document/root structure is invalid.
+    //
+    // Invalid individual records are stored in rejections.
+    // Validly structured records are stored in requests.
     static bool parseFile(
         const std::string& filename,
         std::vector<OrderRequest>& requests,
+        std::vector<ParserRejection>& rejections,
         std::string& error
     );
 };

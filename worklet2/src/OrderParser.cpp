@@ -1,9 +1,10 @@
 
 #include "OrderParser.hpp"
 
+#include <exception>
 #include <fstream>
 #include <limits>
-#include <exception>
+#include <string>
 
 #include "MatchingEngine.hpp"
 #include "nlohmann/json.hpp"
@@ -27,8 +28,7 @@ bool readInt(
         const unsigned long long number =
             value.get<unsigned long long>();
 
-        if (number >
-            static_cast<unsigned long long>(
+        if (number > static_cast<unsigned long long>(
                 std::numeric_limits<int>::max())) {
             error = "'" + field + "' is out of range.";
             return false;
@@ -64,7 +64,7 @@ bool parseRequest(
         "id", "type", "side", "price", "quantity"
     };
 
-    // Reject unexpected fields, including a timestamp field.
+    // Validate the record's structure.
     for (json::const_iterator it = item.begin();
          it != item.end(); ++it) {
         bool known = false;
@@ -90,6 +90,12 @@ bool parseRequest(
         }
     }
 
+    const std::string type = item["type"].get<std::string>();
+    const std::string side = item["side"].get<std::string>();
+
+    request.originalType = type;
+    request.originalSide = side;
+    // Validate data types, not business-rule values.
     if (!item["type"].is_string()) {
         error = "'type' must be a string.";
         return false;
@@ -100,29 +106,6 @@ bool parseRequest(
         return false;
     }
 
-    const std::string type = item["type"].get<std::string>();
-    const std::string side = item["side"].get<std::string>();
-
-    if (type == "LIMIT") {
-        request.type = OrderType::Limit;
-    } else if (type == "MARKET") {
-        request.type = OrderType::Market;
-    } else {
-        error = "Invalid type '" + type +
-                "'. Expected LIMIT or MARKET.";
-        return false;
-    }
-
-    if (side == "BUY") {
-        request.side = Side::Buy;
-    } else if (side == "SELL") {
-        request.side = Side::Sell;
-    } else {
-        error = "Invalid side '" + side +
-                "'. Expected BUY or SELL.";
-        return false;
-    }
-
     if (!readInt(item["id"], request.id, "id", error) ||
         !readInt(item["price"], request.price, "price", error) ||
         !readInt(item["quantity"], request.quantity,
@@ -130,27 +113,32 @@ bool parseRequest(
         return false;
     }
 
-    if (request.id <= 0) {
-        error = "'id' must be positive.";
-        return false;
+    // Convert recognized values normally.
+    // Preserve unsupported values as invalid enum values so
+    // the engine can reject them.
+    const std::string req_type = item["type"].get<std::string>();
+    const std::string req_side = item["side"].get<std::string>();
+
+    if (req_type == "LIMIT") {
+        request.type = OrderType::Limit;
+    } else if (type == "MARKET") {
+        request.type = OrderType::Market;
+    } else {
+        request.type = static_cast<OrderType>(-1);
     }
 
-    if (request.quantity <= 0) {
-        error = "'quantity' must be positive.";
-        return false;
+    if (req_side == "BUY") {
+        request.side = Side::Buy;
+    } else if (side == "SELL") {
+        request.side = Side::Sell;
+    } else {
+        request.side = static_cast<Side>(-1);
     }
 
-    if (request.type == OrderType::Limit &&
-        request.price <= 0) {
-        error = "LIMIT order price must be positive.";
-        return false;
-    }
-
-    if (request.type == OrderType::Market &&
-        request.price != 0) {
-        error = "MARKET order price must be zero.";
-        return false;
-    }
+    // Deliberately do not reject:
+    // id <= 0, quantity <= 0, invalid order type/side,
+    // LIMIT price <= 0, or MARKET price != 0.
+    // These are engine-level validation responsibilities.
 
     return true;
 }
@@ -160,9 +148,11 @@ bool parseRequest(
 bool OrderParser::parseFile(
     const std::string& filename,
     std::vector<OrderRequest>& requests,
+    std::vector<ParserRejection>& rejections,
     std::string& error
 ) {
     requests.clear();
+    rejections.clear();
     error.clear();
 
     std::ifstream file(filename.c_str());
@@ -187,14 +177,39 @@ bool OrderParser::parseFile(
     }
 
     for (std::size_t i = 0; i < root.size(); ++i) {
-        OrderRequest request;
+        const json& item = root[i];
+
+        OrderRequest request = {};
+        request.requestIndex = i;
+
         std::string requestError;
 
-        if (!parseRequest(root[i], request, requestError)) {
-            error = "Request at array index " +
-                    std::to_string(i) + ": " + requestError;
-            requests.clear();
-            return false;
+        if (!parseRequest(item, request, requestError)) {
+            ParserRejection rejection;
+            rejection.requestIndex = i;
+            rejection.hasOrderId = false;
+            rejection.orderId = 0;
+            rejection.reason = requestError;
+            rejection.originalRecord = item.dump();
+
+            // Include the ID if it can be safely extracted,
+            // even if another field made the record invalid.
+            if (item.is_object()) {
+                json::const_iterator idIt = item.find("id");
+
+                if (idIt != item.end()) {
+                    int id = 0;
+                    std::string ignoredError;
+
+                    if (readInt(*idIt, id, "id", ignoredError)) {
+                        rejection.hasOrderId = true;
+                        rejection.orderId = id;
+                    }
+                }
+            }
+
+            rejections.push_back(rejection);
+            continue;
         }
 
         requests.push_back(request);

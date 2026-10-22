@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <string>
 
 #include "Book.hpp"
 #include "Trade.hpp"
@@ -16,6 +17,11 @@
 enum class OrderType {
     Limit,
     Market
+};
+
+struct SubmissionResult {
+    bool success;
+    std::string reason;
 };
 
 class MatchingEngine {
@@ -35,6 +41,8 @@ public:
     explicit MatchingEngine(Book& orderBook);
 
     bool submitOrder(const Order& order, OrderType type);
+
+    SubmissionResult submitOrderDetailed(const Order& order, OrderType type);
 
     const std::vector<Trade>& getTrades() const;
 
