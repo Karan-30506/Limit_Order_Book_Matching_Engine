@@ -1,7 +1,5 @@
 /build*/
 *.exe
 *.o
-
-# Generated logs
 /log/
 *.log
