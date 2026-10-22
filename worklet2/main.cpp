@@ -7,6 +7,7 @@
 #include <sstream>
 #include <ctime>
 #include <cerrno>
+#include "ReplayExporter.hpp"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -240,6 +241,7 @@ int main(int argc, char* argv[]) {
 
     Book book;
     MatchingEngine engine(book);
+    ReplayExporter replay;
     
     int accepted = 0;
     int engineRejected = 0;
@@ -291,20 +293,29 @@ int main(int argc, char* argv[]) {
     const std::vector<Trade>& allTrades = engine.getTrades();
     const std::size_t lastTrade = allTrades.size();
 
+    replay.recordOrder(
+        book,
+        request,
+        allTrades,
+        firstTrade,
+        lastTrade,
+        result
+    );
+
     // Check whether any remaining limit order is in the book.
     const bool restingInBook =
         book.getOrder(request.id) != nullptr;
 
     //Print the report to the console.
-    printer(
-        std::cout,
-        request,
-        allTrades,
-        firstTrade,
-        lastTrade,
-        success,
-        restingInBook
-    );
+    // printer(
+    //     std::cout,
+    //     request,
+    //     allTrades,
+    //     firstTrade,
+    //     lastTrade,
+    //     success,
+    //     restingInBook
+    // );
 
     // Write the same report to the log file.
     printer(
@@ -340,5 +351,15 @@ int main(int argc, char* argv[]) {
         std::to_string(accepted));
     report("Recorded trades      : " +
        std::to_string(engine.getTradeCount()));
+
+    std::string replayError;
+
+    if (!replay.save("visualizer/replay.json", replayError)) {
+        std::cerr << "Replay export failed: "
+                << replayError << '\n';
+    } else {
+        std::cout << "Replay saved to: visualizer/replay.json\n";
+    }
+
     return 0;
 }
