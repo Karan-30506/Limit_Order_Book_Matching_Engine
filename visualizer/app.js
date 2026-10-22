@@ -21,14 +21,14 @@ $("fileInput").addEventListener("change", async (event) => {
     replay = data;
     currentStep = 0;
     $("fileStatus").textContent = file.name;
-    $("sessionLabel").textContent = "REPLAY LOADED";
+    $("sessionLabel").textContent = "Replay loaded";
     $("sessionLabel").parentElement.classList.add("loaded");
     renderTimeline();
     renderStep();
   } catch (error) {
     replay = null;
     $("fileStatus").textContent = "Could not load replay";
-    $("sessionLabel").textContent = "LOAD FAILED";
+    $("sessionLabel").textContent = "Load failed";
     $("sessionLabel").parentElement.classList.remove("loaded");
     showEmptyState();
     alert("Unable to load replay: " + error.message);
@@ -44,6 +44,22 @@ function stopPlayback() {
   if (playButton) {
     playButton.innerHTML = '<span class="play-symbol">▶</span> Play replay';
   }
+}
+
+// Briefly flash a quote when its value moves (green up, red down).
+function setQuote(id, value) {
+  const el = $(id);
+  const prev = parseFloat(String(el.textContent).replace(/,/g, ""));
+  const next = parseFloat(String(value).replace(/,/g, ""));
+  el.textContent = value;
+  if (Number.isNaN(prev) || Number.isNaN(next) || prev === next) return;
+  el.classList.remove("tick-up", "tick-down");
+  void el.offsetWidth;
+  el.classList.add(next > prev ? "tick-up" : "tick-down");
+}
+
+function fmtId(value) {
+  return value === null || value === undefined || value === "" ? "—" : String(value);
 }
 
 function fmt(value) {
@@ -67,10 +83,11 @@ function renderStep() {
 
   $("stepSlider").max = Math.max(0, replay.steps.length - 1);
   $("stepSlider").value = currentStep;
+  $("stepSlider").style.setProperty("--p", `${replay.steps.length > 1 ? currentStep / (replay.steps.length - 1) * 100 : 0}%`);
   $("stepCount").textContent = `${currentStep + 1} / ${replay.steps.length}`;
-  $("sliderCurrentLabel").textContent = `STEP ${String(currentStep + 1).padStart(2, "0")}`;
+  $("sliderCurrentLabel").textContent = `Step ${String(currentStep + 1).padStart(2, "0")}`;
 
-  $("orderId").textContent = `#${fmt(order.id)}`;
+  $("orderId").textContent = `#${fmtId(order.id)}`;
   $("orderType").textContent = fmt(order.type).toUpperCase();
   $("orderSide").textContent = fmt(order.side).toUpperCase();
   $("orderSide").className = order.side === "BUY" ? "side-buy" : order.side === "SELL" ? "side-sell" : "";
@@ -78,7 +95,7 @@ function renderStep() {
   $("orderQuantity").textContent = fmt(order.quantity);
 
   const badge = $("statusBadge");
-  badge.textContent = step.accepted ? "✓ ACCEPTED" : "× REJECTED";
+  badge.textContent = step.accepted ? "✓ Accepted" : "× Rejected";
   badge.className = "badge " + (step.accepted ? "accepted" : "rejected");
 
   const executedQty = trades.reduce((sum, trade) => sum + (Number(trade.quantity) || 0), 0);
@@ -100,11 +117,11 @@ function renderStep() {
     explanation = "Accepted · No trades were generated. Any unfilled market quantity is discarded rather than added to the book.";
   }
   $("explanation").textContent = explanation;
-  $("resultEvent").textContent = (step.event || (step.accepted ? "ORDER_ACCEPTED" : "ORDER_REJECTED")).replaceAll("_", " ");
+  $("resultEvent").textContent = (step.event || (step.accepted ? "ORDER_ACCEPTED" : "ORDER_REJECTED")).replaceAll("_", " ").toLowerCase().replace(/^./, c => c.toUpperCase());
 
-  $("bestBid").textContent = bids.length ? fmt(bids[0].price) : "—";
+  setQuote("bestBid", bids.length ? fmt(bids[0].price) : "—");
   $("bidVolume").textContent = bids.length ? `${fmt(bids[0].volume)} units at best bid` : "No buy orders";
-  $("bestAsk").textContent = asks.length ? fmt(asks[0].price) : "—";
+  setQuote("bestAsk", asks.length ? fmt(asks[0].price) : "—");
   $("askVolume").textContent = asks.length ? `${fmt(asks[0].volume)} units at best ask` : "No sell orders";
   $("spread").textContent = bids.length && asks.length ? fmt(Number(asks[0].price) - Number(bids[0].price)) : "—";
   $("bidLevelsCount").textContent = fmt(bids.length);
@@ -112,15 +129,15 @@ function renderStep() {
 
   const allTradesSoFar = replay.steps.slice(0, currentStep + 1).flatMap(item => Array.isArray(item.trades) ? item.trades : []);
   const latestTrade = allTradesSoFar.length ? allTradesSoFar[allTradesSoFar.length - 1] : null;
-  $("lastTradePrice").textContent = latestTrade ? fmt(latestTrade.price) : "—";
+  setQuote("lastTradePrice", latestTrade ? fmt(latestTrade.price) : "—");
   $("lastTradeMeta").textContent = latestTrade
-    ? `Qty ${fmt(latestTrade.quantity)} · Trade #${fmt(latestTrade.tradeID)}`
+    ? `Qty ${fmt(latestTrade.quantity)} · Trade #${fmtId(latestTrade.tradeID)}`
     : "No executions yet";
 
   renderLevels("bids", bids, "buy");
   renderLevels("asks", asks, "sell");
   renderTrades(trades);
-  $("tradeTableCount").textContent = `${trades.length} EXECUTION${trades.length === 1 ? "" : "S"}`;
+  $("tradeTableCount").textContent = `${trades.length} execution${trades.length === 1 ? "" : "s"}`;
   $("stepDescription").textContent = `Request ${currentStep + 1} of ${replay.steps.length} · ${step.event || (step.accepted ? "ORDER_ACCEPTED" : "ORDER_REJECTED")}`;
   $("firstButton").disabled = currentStep === 0;
   $("prevButton").disabled = currentStep === 0;
@@ -188,9 +205,8 @@ function renderTrades(trades) {
     const values = [trade.tradeID, trade.buyOrderID, trade.sellOrderID, trade.price, trade.quantity];
     values.forEach((value, index) => {
       const cell = document.createElement("td");
-      cell.textContent = fmt(value);
-      if (index === 3) cell.style.color = "#e3ebf3";
-      if (index === 4) cell.className = "align-right";
+      cell.textContent = index < 3 ? fmtId(value) : fmt(value);
+            if (index === 4) cell.className = "align-right";
       row.appendChild(cell);
     });
     body.appendChild(row);
@@ -219,17 +235,17 @@ function renderTimeline() {
     const order = step.order || {};
     const summary = document.createElement("span");
     summary.className = "summary";
-    summary.textContent = `${String(order.type || "ORDER").toUpperCase()} ${String(order.side || "").toUpperCase()} · #${fmt(order.id)}`;
+    summary.textContent = `${String(order.type || "ORDER").toUpperCase()} ${String(order.side || "").toUpperCase()} · #${fmtId(order.id)}`;
 
     const outcome = document.createElement("span");
     const hasTrades = Array.isArray(step.trades) && step.trades.length > 0;
     outcome.className = "outcome" + (!step.accepted ? " rejected" : hasTrades ? " traded" : "");
-    outcome.textContent = !step.accepted ? "REJECTED" : hasTrades ? `${step.trades.length} FILL${step.trades.length === 1 ? "" : "S"}` : "ACCEPTED";
+    outcome.textContent = !step.accepted ? "Rejected" : hasTrades ? `${step.trades.length} fill${step.trades.length === 1 ? "" : "s"}` : "Accepted";
 
     button.append(number, summary, outcome);
     timeline.appendChild(button);
   });
-  $("timelineCount").textContent = `${replay.steps.length} EVENT${replay.steps.length === 1 ? "" : "S"}`;
+  $("timelineCount").textContent = `${replay.steps.length} event${replay.steps.length === 1 ? "" : "s"}`;
   renderTimelineSelection();
 }
 
@@ -252,23 +268,24 @@ function showEmptyState() {
   $("askVolume").textContent = "No sell orders";
   $("lastTradeMeta").textContent = "No executions yet";
   $("stepCount").textContent = "0 / 0";
-  $("sliderCurrentLabel").textContent = "STEP 0";
+  $("sliderCurrentLabel").textContent = "Step 0";
+  $("stepSlider").style.setProperty("--p", "0%");
   $("bidLevelsCount").textContent = "0";
   $("askLevelsCount").textContent = "0";
   $("requestIndex").textContent = "—";
   $("tradeCount").textContent = "0";
   $("executedQuantity").textContent = "0";
-  $("tradeTableCount").textContent = "0 EXECUTIONS";
-  $("timelineCount").textContent = "0 EVENTS";
+  $("tradeTableCount").textContent = "0 executions";
+  $("timelineCount").textContent = "0 events";
   $("bids").replaceChildren();
   $("asks").replaceChildren();
   $("tradesBody").replaceChildren();
   $("timeline").replaceChildren();
   $("orderId").textContent = "No order selected";
   ["orderType", "orderSide", "orderPrice", "orderQuantity"].forEach(id => $(id).textContent = "—");
-  $("statusBadge").textContent = "WAITING";
+  $("statusBadge").textContent = "Waiting";
   $("statusBadge").className = "badge";
-  $("resultEvent").textContent = "NO EVENT";
+  $("resultEvent").textContent = "No event";
   $("explanation").textContent = "Load a replay JSON file to inspect the matching engine.";
   $("stepDescription").textContent = "Load a replay file to begin stepping through the order flow.";
   $("firstButton").disabled = true;

@@ -3,59 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090d13">
+  <meta name="theme-color" content="#090c11">
   <title>LOB Terminal — Matching Engine Replay</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="LOB Terminal home">
-        <span class="brand-mark"><span></span><span></span><span></span></span>
-        <span class="brand-copy"><strong>LOB<span>TERMINAL</span></strong><small>MATCHING ENGINE LAB</small></span>
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-copy"><strong>LOB Terminal</strong><small>Matching engine replay</small></span>
       </a>
       <div class="topbar-center">
-        <span class="market-symbol">LOB / INR</span>
+        <span class="market-symbol">LOB<em>/</em>INR</span>
         <span class="topbar-divider"></span>
-        <span class="session-indicator"><i></i> REPLAY SESSION</span>
+        <span class="session-indicator"><i></i> Replay session</span>
       </div>
       <div class="topbar-actions">
         <span class="file-status-wrap"><span class="status-light"></span><span id="fileStatus">No replay loaded</span></span>
-        <label class="load-button" for="fileInput"><span class="load-icon">↑</span> Load replay <input id="fileInput" type="file" accept=".json,application/json"></label>
+        <label class="load-button" for="fileInput">Load replay <input id="fileInput" type="file" accept=".json,application/json"></label>
       </div>
     </header>
 
     <main>
       <section class="market-header">
         <div>
-          <div class="eyebrow">MARKET SIMULATION <span class="eyebrow-line"></span> WORKLET 2</div>
-          <h1>Order book <span>replay</span></h1>
-          <p class="subhead">Inspect matching decisions, resting liquidity and executions — one request at a time.</p>
+          <h1>Order book replay</h1>
+          <p class="subhead">Step through each request and see how the engine matched it, what rests in the book and which trades printed.</p>
         </div>
-        <div class="session-chip"><span class="chip-dot"></span><span id="sessionLabel">AWAITING DATA</span></div>
+        <div class="session-chip"><span class="chip-dot"></span><span id="sessionLabel">Awaiting data</span></div>
       </section>
 
       <section class="quote-strip" aria-label="Market summary">
         <article class="quote-card bid-quote">
-          <div class="quote-label"><span class="quote-dot"></span> BEST BID <span class="quote-note">BUY SIDE</span></div>
+          <div class="quote-label"><span class="quote-dot"></span>Best bid <span class="quote-note">Buy side</span></div>
           <div class="quote-value" id="bestBid">—</div>
           <div class="quote-foot"><span id="bidVolume">No buy orders</span><span class="quote-side-tag">BID</span></div>
         </article>
         <article class="quote-card last-quote">
-          <div class="quote-label"><span class="quote-dot"></span> LAST EXECUTION <span class="quote-note">TRADE TAPE</span></div>
+          <div class="quote-label"><span class="quote-dot"></span>Last execution <span class="quote-note">Trade tape</span></div>
           <div class="quote-value" id="lastTradePrice">—</div>
           <div class="quote-foot"><span id="lastTradeMeta">No executions yet</span><span class="quote-side-tag">LAST</span></div>
         </article>
         <article class="quote-card ask-quote">
-          <div class="quote-label"><span class="quote-dot"></span> BEST ASK <span class="quote-note">SELL SIDE</span></div>
+          <div class="quote-label"><span class="quote-dot"></span>Best ask <span class="quote-note">Sell side</span></div>
           <div class="quote-value" id="bestAsk">—</div>
           <div class="quote-foot"><span id="askVolume">No sell orders</span><span class="quote-side-tag">ASK</span></div>
         </article>
         <article class="quote-card spread-quote">
-          <div class="quote-label">BID–ASK SPREAD</div>
+          <div class="quote-label">Bid–ask spread</div>
           <div class="quote-value" id="spread">—</div>
           <div class="quote-foot"><span>Best ask − best bid</span><span class="spread-icon">↔</span></div>
         </article>
@@ -64,60 +63,60 @@
       <section class="terminal-grid">
         <article class="panel orderbook-panel">
           <div class="panel-heading">
-            <div class="heading-title"><span class="panel-index">01</span><div><h2>Market depth</h2><p>Resting limit orders · price-time priority</p></div></div>
-            <span class="panel-status"><i></i> SNAPSHOT</span>
+            <div class="heading-title"><div><h2>Market depth</h2><p>Resting limit orders, price-time priority</p></div></div>
+            <span class="panel-status"><i></i> Snapshot</span>
           </div>
           <div class="depth-summary">
-            <div><span class="micro-label">BID LEVELS</span><strong id="bidLevelsCount">0</strong></div>
-            <div><span class="micro-label">ASK LEVELS</span><strong id="askLevelsCount">0</strong></div>
+            <div><span class="micro-label">Bid levels</span><strong id="bidLevelsCount">0</strong></div>
+            <div><span class="micro-label">Ask levels</span><strong id="askLevelsCount">0</strong></div>
             <div class="depth-legend"><span class="legend-bid"></span> Bids <span class="legend-ask"></span> Asks</div>
           </div>
           <div class="book-columns">
             <section class="book-side bids-side">
-              <div class="side-heading"><span class="side-dot bid-dot"></span><h3>BIDS</h3><span class="side-sub">BUY</span></div>
-              <div class="column-label"><span>PRICE</span><span>ORDERS / SIZE</span><span>VOLUME</span></div>
+              <div class="side-heading"><span class="side-dot bid-dot"></span><h3>Bids</h3><span class="side-sub">Buy</span></div>
+              <div class="column-label"><span>Price</span><span>Orders</span><span>Volume</span></div>
               <div id="bids" class="levels"></div>
             </section>
             <section class="book-side asks-side">
-              <div class="side-heading"><span class="side-dot ask-dot"></span><h3>ASKS</h3><span class="side-sub">SELL</span></div>
-              <div class="column-label"><span>PRICE</span><span>ORDERS / SIZE</span><span>VOLUME</span></div>
+              <div class="side-heading"><span class="side-dot ask-dot"></span><h3>Asks</h3><span class="side-sub">Sell</span></div>
+              <div class="column-label"><span>Price</span><span>Orders</span><span>Volume</span></div>
               <div id="asks" class="levels"></div>
             </section>
           </div>
-          <div class="book-foot"><span class="book-foot-mark">i</span> Bars indicate relative volume within each side of the book.</div>
+          <div class="book-foot"><span class="book-foot-mark">i</span> Bars show each level's volume relative to the largest level on that side.</div>
         </article>
 
         <article class="panel incoming-panel">
           <div class="panel-heading">
-            <div class="heading-title"><span class="panel-index">02</span><div><h2>Incoming order</h2><p>Current request and engine decision</p></div></div>
-            <span id="statusBadge" class="badge">WAITING</span>
+            <div class="heading-title"><div><h2>Incoming order</h2><p>Current request and engine decision</p></div></div>
+            <span id="statusBadge" class="badge">Waiting</span>
           </div>
-          <div class="incoming-order-id"><span class="micro-label">ORDER IDENTIFIER</span><strong id="orderId">No order selected</strong></div>
+          <div class="incoming-order-id"><span class="micro-label">Order ID</span><strong id="orderId">No order selected</strong></div>
           <div class="order-grid">
-            <div class="order-field"><span>ORDER TYPE</span><strong id="orderType">—</strong></div>
-            <div class="order-field"><span>SIDE</span><strong id="orderSide">—</strong></div>
-            <div class="order-field"><span>LIMIT PRICE</span><strong id="orderPrice">—</strong></div>
-            <div class="order-field"><span>ORDER QUANTITY</span><strong id="orderQuantity">—</strong></div>
+            <div class="order-field"><span>Type</span><strong id="orderType">—</strong></div>
+            <div class="order-field"><span>Side</span><strong id="orderSide">—</strong></div>
+            <div class="order-field"><span>Limit price</span><strong id="orderPrice">—</strong></div>
+            <div class="order-field"><span>Quantity</span><strong id="orderQuantity">—</strong></div>
           </div>
           <div class="result-box">
-            <div class="result-heading"><span class="result-icon">↳</span><span>ENGINE RESPONSE</span><span id="resultEvent" class="result-event">NO EVENT</span></div>
+            <div class="result-heading"><span class="result-icon">↳</span><span>Engine response</span><span id="resultEvent" class="result-event">No event</span></div>
             <p id="explanation">Load a replay JSON file to inspect the matching engine.</p>
           </div>
           <div class="order-context">
-            <div><span class="micro-label">REQUEST INDEX</span><strong id="requestIndex">—</strong></div>
-            <div><span class="micro-label">TRADES FROM ORDER</span><strong id="tradeCount">0</strong></div>
-            <div><span class="micro-label">EXECUTED QTY</span><strong id="executedQuantity">0</strong></div>
+            <div><span class="micro-label">Request</span><strong id="requestIndex">—</strong></div>
+            <div><span class="micro-label">Trades</span><strong id="tradeCount">0</strong></div>
+            <div><span class="micro-label">Filled qty</span><strong id="executedQuantity">0</strong></div>
           </div>
         </article>
       </section>
 
       <section class="panel playback-panel">
         <div class="panel-heading playback-heading">
-          <div class="heading-title"><span class="panel-index">03</span><div><h2>Replay controls</h2><p id="stepDescription">Load a replay file to begin stepping through the order flow.</p></div></div>
-          <div class="step-counter"><strong id="stepCount">0 / 0</strong><span>REQUESTS</span></div>
+          <div class="heading-title"><div><h2>Replay controls</h2><p id="stepDescription">Load a replay file to begin stepping through the order flow.</p></div></div>
+          <div class="step-counter"><strong id="stepCount">0 / 0</strong><span>Requests</span></div>
         </div>
         <div class="slider-wrap">
-          <div class="slider-labels"><span>START</span><span id="sliderCurrentLabel">STEP 0</span><span>END</span></div>
+          <div class="slider-labels"><span>Start</span><span id="sliderCurrentLabel">Step 0</span><span>End</span></div>
           <input id="stepSlider" type="range" min="0" max="0" value="0" aria-label="Replay step">
         </div>
         <div class="playback-controls">
@@ -128,32 +127,32 @@
             <button id="nextButton" class="icon-button" title="Next step" aria-label="Next step">›</button>
             <button id="lastButton" class="icon-button" title="Last step" aria-label="Last step">▸|</button>
           </div>
-          <label class="speed-control"><span>PLAYBACK SPEED</span><select id="speedSelect"><option value="1800">0.5×</option><option value="1000" selected>1×</option><option value="500">2×</option><option value="200">5×</option></select></label>
+          <label class="speed-control"><span>Speed</span><select id="speedSelect"><option value="1800">0.5×</option><option value="1000" selected>1×</option><option value="500">2×</option><option value="200">5×</option></select></label>
         </div>
       </section>
 
       <section class="bottom-grid">
         <article class="panel trades-panel">
           <div class="panel-heading">
-            <div class="heading-title"><span class="panel-index">04</span><div><h2>Execution tape</h2><p>Trades generated by the selected request</p></div></div>
-            <span class="table-count" id="tradeTableCount">0 EXECUTIONS</span>
+            <div class="heading-title"><div><h2>Execution tape</h2><p>Trades generated by the selected request</p></div></div>
+            <span class="table-count" id="tradeTableCount">0 executions</span>
           </div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>TRADE ID</th><th>BUY ORDER</th><th>SELL ORDER</th><th>PRICE</th><th class="align-right">QUANTITY</th></tr></thead>
+              <thead><tr><th>Trade ID</th><th>Buy order</th><th>Sell order</th><th>Price</th><th class="align-right">Quantity</th></tr></thead>
               <tbody id="tradesBody"><tr><td colspan="5" class="empty-cell">No executions to display.</td></tr></tbody>
             </table>
           </div>
         </article>
         <article class="panel timeline-panel">
           <div class="panel-heading">
-            <div class="heading-title"><span class="panel-index">05</span><div><h2>Order flow</h2><p>Jump to any request in the replay</p></div></div>
-            <span class="table-count" id="timelineCount">0 EVENTS</span>
+            <div class="heading-title"><div><h2>Order flow</h2><p>Jump to any request in the replay</p></div></div>
+            <span class="table-count" id="timelineCount">0 events</span>
           </div>
           <div id="timeline" class="timeline"></div>
         </article>
       </section>
-      <footer><span class="footer-brand">LOB<span>TERMINAL</span></span><span>Visual replay powered by your C++ matching engine</span><span class="footer-right">LOCAL FILE · NO LIVE MARKET DATA</span></footer>
+      <footer><span class="footer-brand">LOB Terminal</span><span>Visual replay of your C++ matching engine</span><span class="footer-right">Local file · no live market data</span></footer>
     </main>
   </div>
   <script src="app.js"></script>
