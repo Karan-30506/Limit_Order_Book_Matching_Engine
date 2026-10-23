@@ -1,21 +1,18 @@
+
 #ifndef MARKET_ORDER_MATCHER_HPP
 #define MARKET_ORDER_MATCHER_HPP
 
-#include "Book.hpp"
-#include "TradeRecorder.hpp"
+#include <memory>
+
+#include "MatchingCore.hpp"
 
 class MarketOrderMatcher {
 private:
-    Book& book;
-    TradeRecorder& tradeRecorder;
-    int& nextTradeID;
+    MatchingCore* core;
 
 public:
-    MarketOrderMatcher(
-        Book& orderBook,
-        TradeRecorder& recorder,
-        int& tradeID
-    );
+    // Constructor used by MatchingEngine to share one core.
+    explicit MarketOrderMatcher(MatchingCore& sharedCore);
 
     bool matchMarketBuy(const Order& order);
     bool matchMarketSell(const Order& order);

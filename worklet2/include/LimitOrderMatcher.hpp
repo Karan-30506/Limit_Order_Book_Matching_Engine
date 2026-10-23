@@ -1,21 +1,18 @@
+
 #ifndef LIMIT_ORDER_MATCHER_HPP
 #define LIMIT_ORDER_MATCHER_HPP
 
-#include "Book.hpp"
-#include "TradeRecorder.hpp"
+#include <memory>
+
+#include "MatchingCore.hpp"
 
 class LimitOrderMatcher {
 private:
-    Book& book;
-    TradeRecorder& tradeRecorder;
-    int& nextTradeID;
+    MatchingCore* core;
 
 public:
-    LimitOrderMatcher(
-        Book& orderBook,
-        TradeRecorder& recorder,
-        int& tradeID
-    );
+    // Constructor used by MatchingEngine to share one core.
+    explicit LimitOrderMatcher(MatchingCore& sharedCore);
 
     bool matchLimitBuy(const Order& order);
     bool matchLimitSell(const Order& order);
