@@ -1,4 +1,3 @@
-
 #ifndef MATCHING_ENGINE_HPP
 #define MATCHING_ENGINE_HPP
 
@@ -10,7 +9,7 @@
 #include "Book.hpp"
 #include "Trade.hpp"
 #include "TradeRecorder.hpp"
-#include "MatchingCore.hpp"
+#include "BaseOrderMatcher.hpp"
 #include "LimitOrderMatcher.hpp"
 #include "MarketOrderMatcher.hpp"
 
@@ -30,10 +29,7 @@ private:
     TradeRecorder tradeRecorder;
     std::uint64_t nextTradeID;
 
-    // One shared core for both matcher classes.
-    MatchingCore matchingCore;
-
-    // Reuse the wrappers instead of constructing them per order.
+    // Polymorphic matchers inheriting from BaseOrderMatcher
     LimitOrderMatcher limitMatcher;
     MarketOrderMatcher marketMatcher;
 

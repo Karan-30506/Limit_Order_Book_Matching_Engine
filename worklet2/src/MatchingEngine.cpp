@@ -1,4 +1,3 @@
-
 #include "MatchingEngine.hpp"
 
 #include "OrderValidator.hpp"
@@ -7,9 +6,8 @@ MatchingEngine::MatchingEngine(Book& orderBook)
     : book(orderBook),
       tradeRecorder(),
       nextTradeID(1),
-      matchingCore(book, tradeRecorder, nextTradeID),
-      limitMatcher(matchingCore),
-      marketMatcher(matchingCore) {}
+      limitMatcher(book, tradeRecorder, nextTradeID),
+      marketMatcher(book, tradeRecorder, nextTradeID) {}
 
 SubmissionResult MatchingEngine::submitOrderDetailed(
     const Order& order,
@@ -42,22 +40,17 @@ SubmissionResult MatchingEngine::submitOrderDetailed(
         return {false, "INVALID_LIMIT_PRICE"};
     }
 
-    // 6. Route to the correct matcher.
-    bool success = false;
-
+    // 6. Route polymorphically to the appropriate matcher.
+    BaseOrderMatcher* matcher = nullptr;
     if (type == OrderType::Limit) {
-        if (order.side == Side::Buy) {
-            success = limitMatcher.matchLimitBuy(order);
-        } else {
-            success = limitMatcher.matchLimitSell(order);
-        }
+        matcher = &limitMatcher;
     } else {
-        if (order.side == Side::Buy) {
-            success = marketMatcher.matchMarketBuy(order);
-        } else {
-            success = marketMatcher.matchMarketSell(order);
-        }
+        matcher = &marketMatcher;
     }
+
+    bool success = (order.side == Side::Buy)
+        ? matcher->matchBuy(order)
+        : matcher->matchSell(order);
 
     if (!success) {
         return {false, "MATCHING_OPERATION_FAILED"};
