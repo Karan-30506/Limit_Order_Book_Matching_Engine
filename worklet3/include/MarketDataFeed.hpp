@@ -55,15 +55,15 @@ private:
     std::vector<Event> buffer;
     size_t capacity;
 
-    uint64_t lastSequence;
-    uint64_t nextConsumerID;
+    uint64_t lastSequence;  //most recently published event
+    uint64_t nextConsumerID; //hands out unique consumer IDs
 
     uint64_t totalMissedEvents;
     uint64_t totalOverflowCount;
     uint64_t totalPublishTimeNs;
     uint64_t maxPublishTimeNs;
 
-    std::map<uint64_t, ConsumerStats> consumerStats;
+    std::map<uint64_t, ConsumerStats> consumerStats; //maps consumer IDs to their stats
 
     mutable std::mutex feedMutex;
 
