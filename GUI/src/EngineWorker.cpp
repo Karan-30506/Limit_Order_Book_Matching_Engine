@@ -3,8 +3,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QMetaObject>
-#include <QStringList>
-#include <QTextStream>
 
 #include <algorithm>
 #include <chrono>
@@ -14,45 +12,9 @@
 #include <utility>
 
 #include "OrderParser.hpp"
+#include "CsvReader.hpp"
 
 namespace {
-
-bool parseCsvRow(const QString& line, QStringList& fields) {
-    fields.clear();
-    QString field;
-    bool quoted = false;
-    bool closedQuote = false;
-    for (qsizetype index = 0; index < line.size(); ++index) {
-        const QChar character = line.at(index);
-        if (quoted) {
-            if (character == QLatin1Char('"')) {
-                if (index + 1 < line.size() &&
-                    line.at(index + 1) == QLatin1Char('"')) {
-                    field += character;
-                    ++index;
-                } else {
-                    quoted = false;
-                    closedQuote = true;
-                }
-            } else {
-                field += character;
-            }
-        } else if (character == QLatin1Char(',')) {
-            fields.push_back(field);
-            field.clear();
-            closedQuote = false;
-        } else if (character == QLatin1Char('"')) {
-            if (!field.isEmpty() || closedQuote) return false;
-            quoted = true;
-        } else {
-            if (closedQuote && !character.isSpace()) return false;
-            if (!closedQuote) field += character;
-        }
-    }
-    if (quoted) return false;
-    fields.push_back(field);
-    return true;
-}
 
 std::vector<OrderOutcomeSnapshot> buildOutcomes(
     const std::vector<OrderCommand>& commands,
@@ -350,8 +312,7 @@ void EngineWorker::parseOrders(QString path, std::uint64_t requestID) {
                     emit operationCompleted(reply);
                     return;
                 }
-                QTextStream stream(&file);
-                if (stream.atEnd()) {
+                if (file.atEnd()) {
                     reply.message = QStringLiteral("CSV file is empty.");
                     emit operationCompleted(reply);
                     return;
@@ -359,15 +320,15 @@ void EngineWorker::parseOrders(QString path, std::uint64_t requestID) {
                 const QStringList required = {QStringLiteral("id"), QStringLiteral("type"),
                     QStringLiteral("side"), QStringLiteral("price"), QStringLiteral("quantity")};
                 QStringList header;
-                if (!parseCsvRow(stream.readLine(), header) || header != required) {
+                if (!parseCsvRow(csvLineText(file.readLine()), header) || header != required) {
                     reply.message = QStringLiteral(
                         "Order CSV header must be exactly: id,type,side,price,quantity");
                     emit operationCompleted(reply);
                     return;
                 }
                 std::size_t lineNumber = 1;
-                while (!stream.atEnd()) {
-                    const QString line = stream.readLine();
+                while (!file.atEnd()) {
+                    const QString line = csvLineText(file.readLine());
                     ++lineNumber;
                     if (line.trimmed().isEmpty()) continue;
                     QStringList fields;
@@ -456,8 +417,8 @@ void EngineWorker::loadReplay(QString path, std::uint64_t requestID) {
             replayEngine_ = std::make_unique<ReplayEngine>(replayEvents_);
             replayCursor_ = 0;
             reply.success = true;
-            constexpr std::size_t visibleEventLimit = 20000;
-            const std::size_t visibleCount = std::min(replayEvents_.size(), visibleEventLimit);
+            constexpr std::size_t eventPageSize = 500;
+            const std::size_t visibleCount = std::min(replayEvents_.size(), eventPageSize);
             reply.events.reserve(visibleCount);
             for (std::size_t index = 0; index < visibleCount; ++index) {
                 const Event& event = replayEvents_[index];
@@ -465,6 +426,7 @@ void EngineWorker::loadReplay(QString path, std::uint64_t requestID) {
                     event.orderID, event.buyOrderID, event.sellOrderID,
                     event.price, event.quantity});
             }
+            reply.replayEventPageStart = 0;
             reply.replayEventCount = replayEvents_.size();
             reply.message = QStringLiteral("Event log loaded.");
             emit operationCompleted(reply);
@@ -475,6 +437,35 @@ void EngineWorker::loadReplay(QString path, std::uint64_t requestID) {
             reply.message = QString::fromUtf8(error.what());
             emit operationCompleted(reply);
         }
+    });
+}
+
+void EngineWorker::loadReplayEventPage(std::size_t offset, std::size_t pageSize,
+                                       std::uint64_t requestID) {
+    post([this, offset, pageSize, requestID] {
+        EngineReply reply;
+        reply.requestID = requestID;
+        if (!replayEngine_) {
+            reply.message = QStringLiteral("Load an event log before browsing events.");
+        } else if (offset > replayEvents_.size()) {
+            reply.message = QStringLiteral("Requested event page is outside the log.");
+        } else {
+            const std::size_t count = std::min(
+                replayEvents_.size() - offset, std::max<std::size_t>(1, pageSize));
+            const std::size_t end = offset + count;
+            reply.events.reserve(end - offset);
+            for (std::size_t index = offset; index < end; ++index) {
+                const Event& event = replayEvents_[index];
+                reply.events.push_back({event.sequenceID, event.type, event.side,
+                    event.orderID, event.buyOrderID, event.sellOrderID,
+                    event.price, event.quantity});
+            }
+            reply.success = true;
+            reply.replayEventPageStart = offset;
+            reply.replayEventCount = replayEvents_.size();
+            reply.message = QStringLiteral("Event page loaded.");
+        }
+        emit operationCompleted(reply);
     });
 }
 
@@ -501,17 +492,16 @@ void EngineWorker::stepReplay(std::uint64_t requestID) {
                    replayEvents_[end].type != EventType::NEW_ORDER) {
                 ++end;
             }
-            const std::uint64_t target = replayEvents_[end - 1].sequenceID;
-            const ReplayResult result = replayEngine_->replayTo(target);
+            const ReplayResult result = replayEngine_->replayNextOrderBoundary();
             reply.success = result.success;
             reply.replaySequence = result.sequence;
-            reply.replayCursor = end;
-            reply.replayEventCount = replayEvents_.size();
             if (!result.success) {
                 reply.message = QStringLiteral("Replay failed at sequence %1: %2")
                     .arg(result.sequence).arg(QString::fromStdString(result.message));
             } else {
                 replayCursor_ = end;
+                reply.replayCursor = replayCursor_;
+                reply.replayEventCount = replayEvents_.size();
                 reply.replaySnapshot = replayEngine_->snapshot();
                 reply.hasReplaySnapshot = true;
                 reply.message = QStringLiteral("Replayed through sequence %1.")
@@ -523,6 +513,53 @@ void EngineWorker::stepReplay(std::uint64_t requestID) {
             reply.fatalError = true;
             emit operationCompleted(reply);
         }
+    });
+}
+
+void EngineWorker::resetReplay(std::uint64_t requestID) {
+    post([this, requestID] {
+        EngineReply reply;
+        reply.requestID = requestID;
+        if (!replayEngine_) {
+            reply.message = QStringLiteral("Load an event log before resetting replay.");
+        } else {
+            replayEngine_->reset();
+            replayCursor_ = 0;
+            reply.success = true;
+            reply.replayCursor = 0;
+            reply.replayEventCount = replayEvents_.size();
+            reply.replaySnapshot = replayEngine_->snapshot();
+            reply.hasReplaySnapshot = true;
+            reply.message = QStringLiteral("Replay reset to the beginning.");
+        }
+        emit operationCompleted(reply);
+    });
+}
+
+void EngineWorker::fastForwardReplay(std::uint64_t requestID) {
+    post([this, requestID] {
+        EngineReply reply;
+        reply.requestID = requestID;
+        if (!replayEngine_) {
+            reply.message = QStringLiteral("Load an event log before replaying.");
+        } else {
+            const ReplayResult result = replayEngine_->replayTo();
+            reply.success = result.success;
+            reply.replaySequence = result.sequence;
+            reply.replayEventCount = replayEvents_.size();
+            if (result.success) {
+                replayCursor_ = replayEvents_.size();
+                reply.replayCursor = replayCursor_;
+                reply.replaySnapshot = replayEngine_->snapshot();
+                reply.hasReplaySnapshot = true;
+                reply.message = QStringLiteral("Fast-forwarded through sequence %1.")
+                    .arg(result.sequence);
+            } else {
+                reply.message = QStringLiteral("Replay failed at sequence %1: %2")
+                    .arg(result.sequence).arg(QString::fromStdString(result.message));
+            }
+        }
+        emit operationCompleted(reply);
     });
 }
 

@@ -1,177 +1,292 @@
 # Limit Order Book Matching Engine
 
-A C++17 command-line limit order book that processes JSON order requests sequentially and records trades.
+A C++17 limit order book and matching engine for processing limit and market orders. The repository integrates three worklets: the order-book data structures, order matching and CLI, and event/replay/performance tooling. It provides a command-line application and an optional Qt 6 desktop GUI.
 
-## Integrated worklets
+## What the worklets do
 
-- **Worklet 1:** FIFO order queues, AVL price-level trees, indexed order/book storage and best-price access.
-- **Worklet 2:** limit and market matching, price-time priority, JSON parsing and the command-line application.
-- **Worklet 3:** event persistence, market-data feed, replay reconstruction/validation and performance support.
+### Worklet 1 — `Limit_Order_Book`
 
-The project builds one CLI executable from one configure/build sequence. Choose the full-system or engine-only test path with a command-line argument. Worklet 3 is linked into the executable, but the engine-only path does not invoke its event, feed or replay functionality.
+- Maintains buy and sell sides as AVL trees of price levels.
+- Stores orders at each price in FIFO queues to preserve time priority.
+- Provides book operations, best-price access and order lookup/storage.
 
-## Build and test
+### Worklet 2 — `Matching_Engine`
 
-Requirements: CMake 3.15+, a C++17 compiler, and threads support. Python 3 is only needed to generate random input.
+- Validates and parses JSON order requests.
+- Matches market and limit orders against the best available opposing prices.
+- Applies price-time priority: best price first, FIFO within a price level.
+- Executes trades at the resting order's price, rests unmatched limit remainders, and discards unfilled market remainders.
+- Supplies the shared CLI executable and the engine-only execution path.
 
-From the project root, configure and build:
+### Worklet 3 — `Testing_and_Performance`
+
+- Records and serializes matching events.
+- Integrates event capture and the market-data feed with the matching engine.
+- Reconstructs and validates the book by replaying recorded events.
+- Collects per-order latency and batch throughput metrics and writes latency CSV reports.
+
+The CLI builds one executable, `matchingengine.exe`. Use `--engine-only` to run the matching engine without Worklet 3 runtime activity, or `--test-system` to include event/feed processing and replay validation.
+
+## Repository structure
+
+```text
+.
+|-- CMakeLists.txt
+|-- README.md
+|-- GUI/
+|   |-- include/
+|   |   |-- CsvReader.hpp
+|   |   |-- CsvTableModel.hpp
+|   |   |-- CsvWorker.hpp
+|   |   |-- EngineService.hpp
+|   |   |-- EngineWorker.hpp
+|   |   `-- MainWindow.hpp
+|   `-- src/
+|       |-- CsvTableModel.cpp
+|       |-- CsvWorker.cpp
+|       |-- EngineService.cpp
+|       |-- EngineWorker.cpp
+|       |-- MainWindow.cpp
+|       `-- main.cpp
+|-- Limit_Order_Book/
+|   |-- include/
+|   |   |-- AVLTree.hpp
+|   |   |-- Book.hpp
+|   |   |-- Hashmap.hpp
+|   |   |-- Hashmap.tpp
+|   |   |-- LimitNode.hpp
+|   |   |-- Order.hpp
+|   |   `-- OrderQueue.hpp
+|   `-- src/
+|       |-- AVLTree.cpp
+|       |-- Book.cpp
+|       |-- LimitNode.cpp
+|       |-- Order.cpp
+|       `-- OrderQueue.cpp
+|-- Matching_Engine/
+|   |-- include/
+|   |   |-- BaseOrderMatcher.hpp
+|   |   |-- LimitOrderMatcher.hpp
+|   |   |-- MarketOrderMatcher.hpp
+|   |   |-- MatchingEngine.hpp
+|   |   |-- OrderParser.hpp
+|   |   |-- OrderValidator.hpp
+|   |   |-- Trade.hpp
+|   |   |-- TradeRecorder.hpp
+|   |   `-- nlohmann/json.hpp
+|   `-- src/
+|       |-- BaseOrderMatcher.cpp
+|       |-- LimitOrderMatcher.cpp
+|       |-- MarketOrderMatcher.cpp
+|       |-- MatchingEngine.cpp
+|       |-- OrderParser.cpp
+|       |-- OrderValidator.cpp
+|       |-- TradeRecorder.cpp
+|       `-- main.cpp
+|-- Testing_and_Performance/
+|   |-- include/
+|   |   |-- Event.hpp
+|   |   |-- EventLogger.hpp
+|   |   |-- EventLoggerIntegration.hpp
+|   |   |-- MarketDataFeed.hpp
+|   |   |-- PerformanceMetrics.hpp
+|   |   `-- replayEngine.hpp
+|   `-- src/
+|       |-- EventLogger.cpp
+|       |-- EventPersistance.cpp
+|       |-- EventSerialization.cpp
+|       |-- MarketDataFeed.cpp
+|       |-- PerformanceMetrics.cpp
+|       `-- replayEngine.cpp
+|-- tests/
+|   |-- data/                    Scenario, stress, random and replay JSON inputs
+|   |-- csv_viewer_test.cpp
+|   |-- engine_service_test.cpp
+|   |-- engine_worker_test.cpp
+|   |-- generate_test_cases.py
+|   |-- gui_smoke_test.cpp
+|   `-- test_main.cpp
+|-- figures/
+|   |-- LOB_class_diagram.png
+|   `-- architecture.png
+`-- visualizer/
+    |-- app.js                    Legacy browser visualizer
+    |-- index.html
+    `-- styles.css
+```
+
+`build/` and `build-gui/` are generated build directories and are not part of the source tree. Runtime reports are written under `log/`.
+
+## Requirements
+
+### CLI
+
+- CMake 3.15 or newer
+- A C++17 compiler (GCC/MinGW, Clang, or MSVC) and its matching CMake generator
+- Threads support
+
+Python 3 is optional and is only needed to generate random JSON inputs.
+
+### Qt GUI
+
+- Windows x64 is the currently supported GUI platform.
+- Qt 6.2 or newer with the Widgets, OpenGLWidgets and PrintSupport components.
+- The Qt kit compiler must match the compiler selected by CMake. For example, use the Qt MinGW kit with the MinGW generator, or an MSVC Qt kit with the corresponding Visual Studio generator.
+- CMake downloads the pinned QCustomPlot 2.1.1 source when configuring the GUI, so the first GUI configure needs internet access. Qt itself must be installed separately.
+
+## Build, test and run the CLI
+
+Run these commands from the repository root in PowerShell. Choose a generator and compiler that are installed on your machine; this example uses MinGW Makefiles:
 
 ```powershell
 cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-The build produces `build/matchingengine.exe` and the `lob_tests` and `engine_service_tests` CTest targets. When configured with `BUILD_QT_GUI=ON`, it also builds `lob_gui` and `engine_worker_tests`.
+The CLI executable is `build\matchingengine.exe`. The CLI-only CTest configuration runs the core and engine-service test targets.
 
-## Optional Qt GUI
+### Input JSON
 
-The desktop application is an optional target and does not change the CLI or tests. On Windows, install a Qt 6 SDK whose compiler matches the selected CMake toolchain (for example, Qt's MinGW kit with `MinGW Makefiles`, or an MSVC kit with an MSVC generator). Set `CMAKE_PREFIX_PATH` to the Qt kit if CMake cannot locate it. CMake downloads and builds the pinned QCustomPlot source when the GUI is enabled; it does not install the Qt SDK itself. The GUI uses a single-window navigation layout instead of dock widgets, so ADS is not needed for this interface.
+The input file is a JSON array. Each order has the five fields below:
 
-Before distributing the GUI, check the license terms of the Qt SDK and fetched libraries; QCustomPlot's source archive includes GPL licensing terms.
-
-Configure, build and run the GUI with:
-
-```powershell
-cmake -S . -B build-gui -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_QT_GUI=ON -DCMAKE_PREFIX_PATH="C:\Qt\6.x.x\mingw_64"
-cmake --build build-gui --target lob_gui
-.\build-gui\lob_gui.exe
+```json
+[
+  {
+    "id": 1001,
+    "type": "LIMIT",
+    "side": "BUY",
+    "price": 100,
+    "quantity": 10
+  }
+]
 ```
 
-Replace the example Qt path with the installed kit. The GUI opens maximized and uses a top navigation bar to show one full-size page at a time. The Order Book page has separately colored buy/sell AVL trees, zoom controls and tabs for price levels, FIFO queue, open orders and recent trades. Clicking a rendered tree node opens the FIFO Queue tab for that level. The Orders page pairs order-entry controls with live open-order and execution tables. Replay provides event-log inspection, forward stepping and final reconstructed-book comparison. Metrics shows session rates, recent latency percentiles, activity/latency charts and Worklet 3 feed health. CSV Viewer displays CSV data and colors `side` values when present. Switch between engine-only and full-system mode on the Order Book page. Full-system mode records events and publishes them to the Worklet 3 feed; replay remains a separate reconstruction view.
+- `id`: integer order identifier
+- `type`: `LIMIT` or `MARKET`
+- `side`: `BUY` or `SELL`
+- `price`: positive integer for a limit order; use `0` for a market order
+- `quantity`: integer order quantity
 
-## Run modes
+Malformed records are reported as parser rejections. Requests that parse but fail matching-engine validation are reported separately as engine rejections.
 
-### Full-system test (Worklets 1–3)
+### CLI modes
 
-```powershell
-.\build\matchingengine.exe --test-system .\tests\data\02_limit_full_match.json
-```
-
-This runs matching through Worklet 3's event logger/feed integration, then reconstructs the events and checks the replayed final book against the live book. Replay and validation happen after submission timing. Event and detailed order logs are written under `log/`.
-
-### Engine-only test (Worklets 1–2; Worklet 3 behavior skipped)
+**Engine-only (Worklets 1–2 at runtime):**
 
 ```powershell
 .\build\matchingengine.exe --engine-only .\tests\data\02_limit_full_match.json
 ```
 
-This uses the same executable as full-system testing. It performs no event logging, feed publication/draining or replay validation. Worklet 3 code is still present in the executable; this mode means that functionality is not used, not that Worklet 3 is absent from the binary.
-
-Both runners accept the same JSON array format: each order has `id`, `type`, `side`, `price` and `quantity`. `type` is `LIMIT` or `MARKET`; `side` is `BUY` or `SELL`. A market order's price is ignored. Invalid records are reported as parser rejections.
-
-Both runners measure the wall-clock duration of the sequential processing loop, starting immediately before the first valid order is submitted and ending after the last submission and its mode-specific processing. Parsing, setup, per-order report/file formatting, output, and final report generation are excluded. Both include matching, fills, and insertion/update of unmatched limit remainders. The full-system mode additionally includes Worklet 3 event publication and feed draining. Event-file flush and replay reconstruction/validation happen after the timer stops.
-
-The CLI defines one transaction as **one structurally valid order request submitted to the matching engine**. The `Throughput` section reports submissions/s (TPS), accepted orders/s and trade executions/s, all divided by the same timed processing duration. The separate `Transactions per second (TPS)` field repeats the submissions/s value for clarity; the two values must match. TPS includes engine-rejected submissions because they still consume a submission call. `Accepted orders/s` excludes rejected submissions. `Trade executions/s` counts individual matches, so one order can produce multiple trades and an unmatched resting limit order can produce no trade. These rates are different measures. Results depend on workload, compiler, build configuration and hardware and are not a general capacity guarantee.
-
-Per-order latency is measured separately around each `submitOrderDetailed` call (or its full-system integration wrapper) and reported as mean, p50, p95, p99 and max. It does not include parsing, feed draining, report formatting or replay. The TPS timer is a wall-clock batch measurement, not the sum of those per-order latency samples. The processing loop does include metric collection; full-system mode also includes feed draining and event publication/enqueueing, but not waiting for the event log flush to finish.
-
-## CLI output reference
-
-Each order's detail block shows:
-
-- `ORDER ID`, `Type`, `Side`, `Limit Price`, and `Requested Quantity`: the submitted request fields (limit price is omitted for market orders).
-- The `Trades generated` list: each `Trade ID`, participating buy/sell order IDs, execution price and quantity. A resting order's price determines the trade price.
-- `Order Outcome`: whether the request was rejected, fully filled, partially filled/executed, left open in the book, or had an unfilled market remainder discarded. `Executed Quantity`, `Remaining Quantity`/`Unfilled Quantity Discarded`, and `Resting in Book` explain the final disposition.
-
-The execution summary attributes mean:
-
-- `Test mode`: whether the run included Worklet 3 (full system) or linked Worklets 1–2 only (engine only).
-- `Valid order submissions`: structurally valid records passed to the engine; malformed records are not included.
-- `Parser rejections` / `Engine rejections`: invalid input records / valid requests refused by matching validation.
-- `Accepted orders`: successful engine submissions, including limit orders that rest without trading.
-- `Recorded trades`: individual matching executions, not submitted orders.
-- `Orders resting after run`: open orders remaining in the book.
-- `Replay validation`: whether Worklet 3 reconstructed the event log and confirmed its final book matches the live book. This is not run in engine-only mode.
-- `Timed processing duration`: elapsed wall time of the batch processing loop; exclusions and mode-specific inclusions are described above.
-- `Submission latency`: per-call mean and tail percentiles. p50 is the median; p95/p99 are the latency at or below which 95%/99% of sampled calls fall; max is the slowest sampled call.
-- `Transactions per second (TPS)`: valid submissions divided by timed processing duration. This project explicitly counts an order request as a transaction.
-- `Throughput`: the same TPS value plus accepted orders/s and trade executions/s. All rates share one denominator; the separate TPS line should equal the submissions/s value here.
-- `Accepted orders/s` and `Trade executions/s`: accepted submissions or generated trades divided by the same timed duration.
-- `Per-order latency CSV`, `Event log`, and `Feed`: output paths and Worklet 3 event publication/read/missed-event counts when available.
-
-The terminal shows a compact, aligned run header and summary so large inputs do not flood the console. Full per-order detail is written to `<name>_logs.log` in the `log/` folder.
-
-## Generated output
-
-Output is written under `log/` using the input filename (without extension):
-
-- `<name>_logs.log` — detailed per-order results and execution summary.
-- `<name>_reject.log` — parser- and engine-level rejections.
-- `<name>_latency.csv` — per-order submission latency, outcome and rejection reason.
-- `<name>_events.log` — emitted by the full-system runner; sequential Worklet 3 events.
-
-Files for a matching input basename are overwritten by the next run. The full-system CLI validates its event stream before reporting success.
-
-Run the consolidated automated tests with:
+**Full system (Worklets 1–3):**
 
 ```powershell
-ctest --test-dir build --output-on-failure
+.\build\matchingengine.exe --test-system .\tests\data\02_limit_full_match.json
 ```
 
-## Supplied scenarios
+The full-system run records events, processes the feed and validates the replayed final book against the live book. Replay validation runs after the matching throughput timer stops.
 
-The `tests/data/` directory contains:
-
-| File                                               | Scenario                                                  |
-| -------------------------------------------------- | --------------------------------------------------------- |
-| `01_limit_orders_resting.json`                   | Non-crossing limit orders rest in the book                |
-| `02_limit_full_match.json`                       | Limit-order matches                                       |
-| `03_limit_partial_fill_remainder.json`           | Partial fills and limit remainders                        |
-| `04_market_buy_multilevel.json`                  | Market buys across ask levels                             |
-| `05_market_sell_multilevel.json`                 | Market sells across bid levels                            |
-| `06_market_insufficient_liquidity.json`          | Market orders with insufficient liquidity                 |
-| `07_same_price_fifo.json`                        | FIFO queue priority at a shared price                     |
-| `stress_test_10000.json`                         | 10,000-request functional stress dataset                  |
-| `test_random_250.json`, `test_random_300.json` | Randomized datasets                                       |
-| `sample_replay.json`                             | Sample replay JSON retained for the legacy browser viewer |
-
-Run all seven designed scenarios in full-system mode from PowerShell:
+**Replay an event log created by a full-system run:**
 
 ```powershell
-$scenarios = @(
-  "01_limit_orders_resting.json",
-  "02_limit_full_match.json",
-  "03_limit_partial_fill_remainder.json",
-  "04_market_buy_multilevel.json",
-  "05_market_sell_multilevel.json",
-  "06_market_insufficient_liquidity.json",
-  "07_same_price_fifo.json"
-)
-foreach ($scenario in $scenarios) {
-  .\build\matchingengine.exe --test-system ".\tests\data\$scenario"
-}
+.\build\matchingengine.exe --replay .\log\02_limit_full_match_events.log
 ```
 
-For engine-only testing, run the same loop with `matchingengine.exe --engine-only` in place of `matchingengine.exe --test-system`.
+The CLI prints its usage syntax if invoked without a supported mode and input path.
 
-The generator is [`generate_test_cases.py`](tests/generate_test_cases.py):
+### Test data and generated inputs
+
+The `tests\data\` directory includes matching scenarios, a 10,000-order stress input, randomized inputs and a sample replay file. To generate a repeatable 10,000-order input:
 
 ```powershell
-python tests\generate_test_cases.py 10000
-python tests\generate_test_cases.py 500 --seed 7
-python tests\generate_test_cases.py 500 --output .\tests\data\my_stress_test.json
+python .\tests\generate_test_cases.py 10000 --seed 42
 ```
 
-## Project layout
+By default, the generator writes `tests\data\test_random_10000.json`. Choose a different output path with `--output`:
 
-```text
-Limit_Order_Book/
-  include/                      Worklet 1 headers
-  src/                          Worklet 1 implementations
-Matching_Engine/
-  include/                      Worklet 2 headers and JSON dependency
-  src/                          Worklet 2 implementations and CLI entry point
-Testing_and_Performance/
-  include/                      Worklet 3 headers
-  src/                          Worklet 3 implementations and metrics
-tests/
-  test_main.cpp                 Consolidated C++ regression tests
-  generate_test_cases.py        Random JSON dataset generator
-  data/                         All scenario, stress and sample replay JSON files
-visualizer/                     Legacy browser UI; its sample data is in tests/data/
+```powershell
+python .\tests\generate_test_cases.py 50000 --seed 42 --output .\tests\data\benchmark_50000.json
+.\build\matchingengine.exe --engine-only .\tests\data\benchmark_50000.json
 ```
 
-## Matching rules
+The full-system throughput can be measured by running the same input with `--test-system`. Compare runs using the same input, build type, compiler and machine.
 
-The best opposing price is matched first; orders at the same price are matched FIFO. Trades execute at the resting order's price. An unmatched limit remainder rests in the book. An unmatched market remainder is discarded.
+### Reports
+
+CLI reports are written under `log/`, using the input filename as their base name:
+
+- `<name>_logs.log` — detailed per-order results and summary.
+- `<name>_reject.log` — parser and engine rejections.
+- `<name>_latency.csv` — per-order latency, outcome and rejection reason.
+- `<name>_events.log` — Worklet 3 event stream, produced by full-system mode.
+
+Outputs for the same input basename are overwritten by the next run.
+
+## Build and run the Qt GUI (Windows)
+
+Install a Qt 6 SDK with a compiler-matched kit first. For the Qt installation used to verify this repository, configure with Qt 6.12.0 and its MinGW 13.1 toolchain:
+
+```powershell
+cmake -S . -B build-gui -G "MinGW Makefiles" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DBUILD_QT_GUI=ON `
+  -DCMAKE_PREFIX_PATH="D:\Qt\6.12.0\mingw_64" `
+  -DCMAKE_CXX_COMPILER="D:\Qt\Tools\mingw1310_64\bin\g++.exe" `
+  -DCMAKE_MAKE_PROGRAM="D:\Qt\Tools\mingw1310_64\bin\mingw32-make.exe" `
+  -DCMAKE_RC_COMPILER=D:/Qt/Tools/mingw1310_64/bin/windres.exe
+cmake --build build-gui --target lob_gui --parallel
+.\build-gui\lob_gui.exe
+```
+
+If Qt is installed elsewhere, update the Qt and toolchain paths together. Do not mix compilers from different Qt kits. The resource compiler path above uses forward slashes intentionally for CMake compatibility.
+
+Run the GUI-enabled tests with the Qt and compiler runtime directories on `PATH`:
+
+```powershell
+$env:PATH = "D:\Qt\6.12.0\mingw_64\bin;D:\Qt\Tools\mingw1310_64\bin;$env:PATH"
+ctest --test-dir build-gui --output-on-failure
+```
+
+The GUI-enabled CTest configuration includes five targets: core tests, engine-service tests, engine-worker tests, CSV viewer tests and a GUI smoke test.
+
+To prepare a Windows deployment directory with Qt runtime dependencies:
+
+```powershell
+cmake --build build-gui --target package_lob_gui
+```
+
+The packaged executable and dependencies are placed in `build-gui\dist`. Review the Qt and QCustomPlot license terms before redistribution.
+
+The GUI has single-window navigation for the order book, order management, replay, metrics and CSV viewing. It displays separate buy/sell trees with FIFO queue inspection, supports order operations and JSON/CSV order loading, and provides forward replay controls, event browsing, charts and metrics export. GUI throughput charts measure session rates and include idle time; use CLI runs for performance measurements.
+
+## Specifications and performance
+
+### Software and verified environment
+
+- Language standard: C++17.
+- Data structures: AVL price-level trees and FIFO queues; orders are maintained through book/order lookup structures.
+- Verified CLI build: Windows x64, Release, CMake 3.29.2 and MinGW-W64 GCC 13.2.0.
+- Verified Qt GUI build: Qt 6.12.0 with the matching Qt MinGW 13.1 toolchain.
+- Example benchmark host: 13th Gen Intel Core i5-13450HX (10 cores / 16 logical processors), 24 GB RAM.
+
+### Throughput and latency
+
+The CLI reports:
+
+- **Submissions/s (TPS):** structurally valid order requests submitted divided by timed batch duration. A request counts as one transaction, including a request subsequently rejected by engine validation.
+- **Accepted orders/s:** successfully accepted submissions divided by the same duration.
+- **Trade executions/s:** individual matches divided by the same duration. One order may produce multiple trades.
+- **Per-order latency:** mean, p50, p95, p99 and maximum submission latency.
+
+Engine-only timing covers matching, book updates and metric collection; it excludes JSON parsing, event/feed work and CLI/file output. Full-system timing additionally includes event publication and feed draining. Event-file flush and replay validation are outside that timer. The throughput and latency fields measure different scopes; per-order latency samples do not sum to batch duration.
+
+As one local example, the supplied `stress_test_10000.json` produced **about 2.90 million submissions/s** and **2.81 million trade executions/s**, with **0.24 μs mean** and **0.40 μs p95** submission latency in one engine-only run on the host above. The timed interval was only a few milliseconds. This is a sample observation, not a sustained-capacity claim or a portable performance guarantee. Results can vary with workload, build/compiler, operating-system scheduling, background load and hardware. Re-run the same generated input several times and compare results on the target machine.
+
+## Matching behavior and limitations
+
+- Incoming orders match the best opposing price first; orders at one price level are matched FIFO.
+- Trades execute at the resting order's price.
+- Unmatched limit quantity rests in the book; unmatched market quantity is discarded.
+- Replay is forward-only.
+- The GUI CSV viewer searches across a file and displays pages of up to 500 rows; sorting applies to the displayed page. CSV parsing supports quoted commas and UTF-8 BOMs but not quoted embedded newlines.
+- The `visualizer/` directory is a legacy browser UI; the supported desktop GUI is the optional Qt application.

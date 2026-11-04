@@ -61,6 +61,7 @@ struct EngineReply {
     std::uint64_t replaySequence = 0;
     std::size_t replayCursor = 0;
     std::size_t replayEventCount = 0;
+    std::size_t replayEventPageStart = 0;
     bool hasReplaySnapshot = false;
 };
 
@@ -82,7 +83,11 @@ public:
     void modify(int orderID, int price, int quantity, std::uint64_t requestID);
     void parseOrders(QString path, std::uint64_t requestID);
     void loadReplay(QString path, std::uint64_t requestID);
+    void loadReplayEventPage(std::size_t offset, std::size_t pageSize,
+                             std::uint64_t requestID);
     void stepReplay(std::uint64_t requestID);
+    void resetReplay(std::uint64_t requestID);
+    void fastForwardReplay(std::uint64_t requestID);
     void validateReplay(std::uint64_t requestID);
     void flushEventLog(std::uint64_t requestID = 0);
     void requestSnapshot();

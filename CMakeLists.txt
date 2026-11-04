@@ -48,14 +48,14 @@ if(BUILD_QT_GUI)
 
     include(FetchContent)
 
+    if(POLICY CMP0135)
+        cmake_policy(SET CMP0135 NEW)
+    endif()
     FetchContent_Declare(
         qcustomplot_source
         URL https://www.qcustomplot.com/release/2.1.1/QCustomPlot-source.tar.gz
         URL_HASH SHA256=5E2D22DEC779DB8F01F357CBDB25E54FBCF971ADAEE75EAE8D7AD2444487182F
     )
-    if(POLICY CMP0135)
-        cmake_policy(SET CMP0135 NEW)
-    endif()
     FetchContent_GetProperties(qcustomplot_source)
     if(NOT qcustomplot_source_POPULATED)
         FetchContent_Populate(qcustomplot_source)
@@ -74,11 +74,15 @@ if(BUILD_QT_GUI)
         GUI/src/MainWindow.cpp
         GUI/src/EngineService.cpp
         GUI/src/EngineWorker.cpp
+        GUI/src/CsvWorker.cpp
+        GUI/src/CsvTableModel.cpp
         GUI/include/MainWindow.hpp
         GUI/include/EngineService.hpp
         GUI/include/EngineWorker.hpp
+        GUI/include/CsvWorker.hpp
+        GUI/include/CsvTableModel.hpp
     )
-    set_target_properties(lob_gui PROPERTIES AUTOMOC ON)
+    set_target_properties(lob_gui PROPERTIES AUTOMOC ON WIN32_EXECUTABLE ON)
     target_include_directories(lob_gui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include")
     target_link_libraries(lob_gui PRIVATE
         lob_engine
@@ -86,6 +90,27 @@ if(BUILD_QT_GUI)
         Qt6::OpenGLWidgets
         qcustomplot
     )
+    if(WIN32)
+        find_program(WINDEPLOYQT_EXECUTABLE windeployqt
+            HINTS "${Qt6_DIR}/../../../bin" "$ENV{QTDIR}/bin"
+        )
+        if(NOT WINDEPLOYQT_EXECUTABLE)
+            message(FATAL_ERROR "windeployqt was not found in the selected Qt 6 kit.")
+        endif()
+        set(GUI_PACKAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist")
+        add_custom_target(package_lob_gui
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${GUI_PACKAGE_DIR}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:lob_gui>"
+                    "${GUI_PACKAGE_DIR}/$<TARGET_FILE_NAME:lob_gui>"
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --compiler-runtime --no-translations
+                    --dir "${GUI_PACKAGE_DIR}"
+                    "${GUI_PACKAGE_DIR}/$<TARGET_FILE_NAME:lob_gui>"
+            DEPENDS lob_gui
+            COMMENT "Preparing a Windows Qt deployment in ${GUI_PACKAGE_DIR}"
+            VERBATIM
+        )
+        install(TARGETS lob_gui RUNTIME DESTINATION .)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -153,6 +178,56 @@ if(BUILD_TESTING)
         add_test(NAME engine_worker_tests COMMAND engine_worker_tests)
         set_tests_properties(engine_worker_tests PROPERTIES
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        )
+        add_executable(csv_viewer_tests
+            tests/csv_viewer_test.cpp
+            GUI/src/CsvWorker.cpp
+            GUI/src/CsvTableModel.cpp
+            GUI/include/CsvWorker.hpp
+        )
+        set_target_properties(csv_viewer_tests PROPERTIES AUTOMOC ON)
+        target_include_directories(csv_viewer_tests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include"
+        )
+        target_link_libraries(csv_viewer_tests PRIVATE Qt6::Core Qt6::Gui)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(csv_viewer_tests PRIVATE
+                -Wall -Wextra -Wpedantic
+            )
+        endif()
+        add_test(NAME csv_viewer_tests COMMAND csv_viewer_tests)
+        set_tests_properties(csv_viewer_tests PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        )
+        add_executable(gui_smoke_tests
+            tests/gui_smoke_test.cpp
+            GUI/src/MainWindow.cpp
+            GUI/src/EngineService.cpp
+            GUI/src/EngineWorker.cpp
+            GUI/src/CsvWorker.cpp
+            GUI/src/CsvTableModel.cpp
+            GUI/include/MainWindow.hpp
+            GUI/include/EngineService.hpp
+            GUI/include/EngineWorker.hpp
+            GUI/include/CsvWorker.hpp
+            GUI/include/CsvTableModel.hpp
+        )
+        set_target_properties(gui_smoke_tests PROPERTIES AUTOMOC ON)
+        target_include_directories(gui_smoke_tests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include"
+        )
+        target_link_libraries(gui_smoke_tests PRIVATE
+            lob_engine Qt6::Widgets Qt6::OpenGLWidgets qcustomplot
+        )
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(gui_smoke_tests PRIVATE
+                -Wall -Wextra -Wpedantic
+            )
+        endif()
+        add_test(NAME gui_smoke_tests COMMAND gui_smoke_tests)
+        set_tests_properties(gui_smoke_tests PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_OPENGL=software"
         )
     endif()
 endif()

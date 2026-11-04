@@ -409,11 +409,54 @@ ReplayResult ReplayEngine::replayTo(std::uint64_t sequence) {
         reset();
         return result;
     }
+    nextEvent_ = nextEvent;
+    expectedSequence_ = expected;
+    lastAppliedSequence_ = lastApplied;
     const bool beyondLast = sequence != UINT64_MAX && sequence > lastApplied;
     return {true, lastApplied, beyondLast ? "requested sequence is beyond the last event; replayed the last available state" : ""};
 }
 
-void ReplayEngine::reset() { book_.reset(); }
+ReplayResult ReplayEngine::replayNextOrderBoundary() {
+    if (nextEvent_ >= events_.size()) {
+        return {true, lastAppliedSequence_, "replay is already at the end"};
+    }
+
+    std::size_t end = nextEvent_ + 1;
+    while (end < events_.size() && events_[end].type != EventType::NEW_ORDER) {
+        ++end;
+    }
+
+    for (std::size_t index = nextEvent_; index < end; ++index) {
+        const Event& event = events_[index];
+        if (event.sequenceID != expectedSequence_) {
+            reset();
+            return {false, event.sequenceID,
+                    "event sequence has a gap, duplicate, or does not start at one"};
+        }
+        const ReplayResult result = book_.apply(event);
+        if (!result.success) {
+            reset();
+            return result;
+        }
+        lastAppliedSequence_ = event.sequenceID;
+        ++expectedSequence_;
+    }
+
+    const ReplayResult result = book_.finalize();
+    if (!result.success) {
+        reset();
+        return result;
+    }
+    nextEvent_ = end;
+    return {true, lastAppliedSequence_, ""};
+}
+
+void ReplayEngine::reset() {
+    book_.reset();
+    nextEvent_ = 0;
+    expectedSequence_ = 1;
+    lastAppliedSequence_ = 0;
+}
 const ReplayBook& ReplayEngine::book() const { return book_; }
 ReplaySnapshot ReplayEngine::snapshot() const { return book_.snapshot(); }
 std::vector<std::string> ReplayEngine::compareWith(Book& liveBook) const { return book_.compareWith(liveBook); }

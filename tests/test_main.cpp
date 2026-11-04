@@ -123,6 +123,14 @@ void testIntegratedMatchingFeedReplayAndPersistence() {
         require(result.success, "event replay failed: " + result.message);
         require(replay.compareWith(book).empty(),
                 "replay and live book diverged");
+        ReplayEngine steppedReplay(loggedEvents);
+        ReplayResult stepResult;
+        do {
+            stepResult = steppedReplay.replayNextOrderBoundary();
+            require(stepResult.success, "incremental replay failed: " + stepResult.message);
+        } while (stepResult.sequence < loggedEvents.back().sequenceID);
+        require(steppedReplay.compareWith(book).empty(),
+                "incremental replay diverged from full replay");
 
         Event event;
         std::size_t readCount = 0;

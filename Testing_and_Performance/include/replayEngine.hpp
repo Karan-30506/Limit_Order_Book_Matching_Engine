@@ -74,6 +74,7 @@ public:
     ~ReplayEngine();
 
     ReplayResult replayTo(std::uint64_t sequence = UINT64_MAX);
+    ReplayResult replayNextOrderBoundary();
     void reset();
 
     const ReplayBook& book() const;
@@ -83,6 +84,9 @@ public:
 private:
     std::vector<Event> events_;
     ReplayBook book_;
+    std::size_t nextEvent_ = 0;
+    std::uint64_t expectedSequence_ = 1;
+    std::uint64_t lastAppliedSequence_ = 0;
 };
 
 #endif
