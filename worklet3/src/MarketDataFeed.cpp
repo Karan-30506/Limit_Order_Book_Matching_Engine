@@ -17,6 +17,7 @@ MarketDataFeed::MarketDataFeed(size_t bufferCapacity)
       nextConsumerID(1),
       totalMissedEvents(0),
       totalOverflowCount(0),
+      totalEventsPublished(0),
       totalPublishTimeNs(0),
       maxPublishTimeNs(0) {
 
@@ -98,9 +99,9 @@ PublishStatus MarketDataFeed::publish(const Event& event) {
         return PublishStatus::INVALID_SEQUENCE;
     }
 
-    bool overwritten = false;
+    const bool bufferOverwritten = event.sequenceID > capacity;
 
-    if (event.sequenceID > capacity) {
+    if (bufferOverwritten) {
         uint64_t overwrittenSequence =
             event.sequenceID - capacity;
 
@@ -112,8 +113,6 @@ PublishStatus MarketDataFeed::publish(const Event& event) {
                     stats,
                     overwrittenSequence + 1
                 );
-
-                overwritten = true;
             }
         }
     }
@@ -124,6 +123,7 @@ PublishStatus MarketDataFeed::publish(const Event& event) {
 
     buffer[index] = event;
     lastSequence = event.sequenceID;
+    totalEventsPublished++;
 
     auto end = std::chrono::steady_clock::now();
 
@@ -139,7 +139,7 @@ PublishStatus MarketDataFeed::publish(const Event& event) {
         maxPublishTimeNs = elapsed;
     }
 
-    return overwritten
+    return bufferOverwritten
         ? PublishStatus::BUFFER_OVERWRITE
         : PublishStatus::PUBLISHED;
 }
@@ -200,6 +200,23 @@ std::vector<Event> MarketDataFeed::getBatch(
     size_t maxEvents) {
 
     std::vector<Event> events;
+    getBatch(consumerID, maxEvents, events);
+    return events;
+}
+
+// reads a batch and reports why consumption stopped.
+FeedStatus MarketDataFeed::getBatch(
+    uint64_t consumerID,
+    size_t maxEvents,
+    std::vector<Event>& events) {
+
+    events.clear();
+    ConsumerStats stats{};
+
+    if (!getConsumerStats(consumerID, stats)) {
+        return FeedStatus::INVALID_CONSUMER;
+    }
+
     events.reserve(maxEvents);
 
     for (size_t i = 0; i < maxEvents; i++) {
@@ -211,13 +228,19 @@ std::vector<Event> MarketDataFeed::getBatch(
         );
 
         if (status != FeedStatus::EVENT_AVAILABLE) {
-            break;
+            if (status == FeedStatus::NO_EVENT && !events.empty()) {
+                return FeedStatus::EVENT_AVAILABLE;
+            }
+
+            return status;
         }
 
         events.push_back(event);
     }
 
-    return events;
+    return events.empty()
+        ? FeedStatus::NO_EVENT
+        : FeedStatus::EVENT_AVAILABLE;
 }
 
 // resets a consumer's position after overflow.
@@ -262,7 +285,7 @@ FeedStats MarketDataFeed::getFeedStats() const {
 
     FeedStats stats{};
 
-    stats.eventsPublished = lastSequence;
+    stats.eventsPublished = totalEventsPublished;
     stats.latestSequence = lastSequence;
     stats.capacity = capacity;
     stats.consumers = consumerStats.size();
@@ -279,10 +302,10 @@ FeedStats MarketDataFeed::getFeedStats() const {
     stats.maxPublishTimeNs =
         static_cast<double>(maxPublishTimeNs);
 
-    if (lastSequence > 0) {
+    if (totalEventsPublished > 0) {
         stats.averagePublishTimeNs =
             static_cast<double>(totalPublishTimeNs) /
-            static_cast<double>(lastSequence);
+            static_cast<double>(totalEventsPublished);
     }
 
     return stats;
@@ -313,6 +336,7 @@ void MarketDataFeed::resetStatistics() {
 
     totalMissedEvents = 0;
     totalOverflowCount = 0;
+    totalEventsPublished = 0;
     totalPublishTimeNs = 0;
     maxPublishTimeNs = 0;
 

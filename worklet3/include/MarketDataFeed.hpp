@@ -60,6 +60,7 @@ private:
 
     uint64_t totalMissedEvents;
     uint64_t totalOverflowCount;
+    uint64_t totalEventsPublished;
     uint64_t totalPublishTimeNs;
     uint64_t maxPublishTimeNs;
 
@@ -101,6 +102,14 @@ public:
     std::vector<Event> getBatch(
         uint64_t consumerID,
         size_t maxEvents
+    );
+
+    // Reads a batch and returns EVENT_AVAILABLE if any events were read.
+    // Events read before an overflow or invalid-consumer status are retained.
+    FeedStatus getBatch(
+        uint64_t consumerID,
+        size_t maxEvents,
+        std::vector<Event>& events
     );
 
     bool recoverConsumer(uint64_t consumerID);

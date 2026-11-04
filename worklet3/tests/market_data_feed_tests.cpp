@@ -122,6 +122,42 @@ void testOverflow() {
     assert(received.sequenceID == 2);
 }
 
+void testPublishReportsBufferReuse() {
+    MarketDataFeed feed(2);
+
+    assert(feed.publish(makeEvent(1, 1)) == PublishStatus::PUBLISHED);
+    assert(feed.publish(makeEvent(2, 2)) == PublishStatus::PUBLISHED);
+    assert(feed.publish(makeEvent(3, 3)) == PublishStatus::BUFFER_OVERWRITE);
+}
+
+void testBatchOverflowStatus() {
+    MarketDataFeed feed(2);
+    const uint64_t consumer = feed.registerConsumer();
+
+    for (uint64_t sequence = 1; sequence <= 3; sequence++) {
+        assert(feed.publish(
+            makeEvent(sequence, static_cast<int>(sequence))
+        ) == (sequence == 3
+            ? PublishStatus::BUFFER_OVERWRITE
+            : PublishStatus::PUBLISHED));
+    }
+
+    std::vector<Event> events;
+    assert(feed.getBatch(consumer, 2, events) == FeedStatus::OVERFLOW);
+    assert(events.empty());
+
+    assert(feed.getBatch(consumer, 5, events) == FeedStatus::EVENT_AVAILABLE);
+    assert(events.size() == 2);
+    assert(events[0].sequenceID == 2);
+    assert(events[1].sequenceID == 3);
+
+    assert(feed.getBatch(consumer, 2, events) == FeedStatus::NO_EVENT);
+    assert(events.empty());
+
+    assert(feed.getBatch(999, 2, events) == FeedStatus::INVALID_CONSUMER);
+    assert(events.empty());
+}
+
 void testInvalidConsumer() {
     MarketDataFeed feed(5);
 
@@ -177,6 +213,17 @@ void testStatistics() {
     assert(stats.capacity == 5);
     assert(stats.eventsStored == 1);
     assert(stats.consumers == 1);
+
+    feed.resetStatistics();
+    assert(feed.publish(makeEvent(2, 102)) == PublishStatus::PUBLISHED);
+
+    stats = feed.getFeedStats();
+    assert(stats.eventsPublished == 1);
+    assert(stats.latestSequence == 2);
+    assert(stats.eventsStored == 2);
+
+    assert(feed.getConsumerStats(consumer, consumerStats));
+    assert(consumerStats.eventsRead == 0);
 }
 
 void testConcurrentPublishers() {
@@ -227,6 +274,8 @@ void runMarketDataFeedTests() {
     testFIFOOrder();
     testMultipleConsumers();
     testOverflow();
+    testPublishReportsBufferReuse();
+    testBatchOverflowStatus();
     testInvalidConsumer();
     testConsumerRemoval();
     testInvalidSequence();
