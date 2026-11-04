@@ -50,6 +50,34 @@ endfunction()
 
 enable_project_warnings(matchingengine)
 
+# Core data-structure tests for the Worklet 1 order book.
+add_executable(core_tests
+    tests/main_test_runner.cpp
+    tests/test_order.cpp
+    tests/test_order_queue.cpp
+    tests/test_limit_node.cpp
+    tests/test_avl_tree.cpp
+    tests/test_hash_map.cpp
+    tests/test_book_combined.cpp
+    ${WORKLET1_SOURCES}
+)
+target_include_directories(core_tests PRIVATE
+    ${PROJECT_INCLUDE_DIRS}
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
+enable_project_warnings(core_tests)
+
+# Focused regressions for previously fixed order-book behavior.
+add_executable(regression_tests
+    tests/regression_tests.cpp
+    ${WORKLET1_SOURCES}
+)
+target_include_directories(regression_tests PRIVATE
+    ${PROJECT_INCLUDE_DIRS}
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
+enable_project_warnings(regression_tests)
+
 add_executable(unit_tests
     worklet3/tests/test_main.cpp
     worklet3/tests/unit_tests/benchmark_tests.cpp
@@ -177,6 +205,8 @@ target_link_libraries(worklet3_stub_integration_tests PRIVATE Threads::Threads)
 enable_project_warnings(worklet3_stub_integration_tests)
 
 if(BUILD_TESTING)
+    add_test(NAME core_tests COMMAND core_tests)
+    add_test(NAME regression_tests COMMAND regression_tests)
     add_test(NAME unit_tests COMMAND unit_tests)
     add_test(NAME full_workflow_tests COMMAND full_workflow_tests)
     add_test(NAME worklet3_harness COMMAND worklet3_harness)
@@ -187,6 +217,8 @@ if(BUILD_TESTING)
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
         DEPENDS
+            core_tests
+            regression_tests
             unit_tests
             full_workflow_tests
             worklet3_harness

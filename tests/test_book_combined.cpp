@@ -304,4 +304,3 @@ int main() {
     return suite.allPassed() ? 0 : 1;
 }
 #endif
-
