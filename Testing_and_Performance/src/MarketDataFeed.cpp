@@ -161,7 +161,7 @@ FeedStatus MarketDataFeed::getNextEvent(
 
     if (stats.overflowed) {
         stats.overflowed = false;
-        return FeedStatus::OVERFLOW;
+        return FeedStatus::BUFFER_OVERFLOW;
     }
 
     if (stats.nextSequence > lastSequence) {
@@ -173,7 +173,7 @@ FeedStatus MarketDataFeed::getNextEvent(
     if (stats.nextSequence < oldest) {
         recordOverflow(stats, oldest);
         stats.overflowed = false;
-        return FeedStatus::OVERFLOW;
+        return FeedStatus::BUFFER_OVERFLOW;
     }
 
     size_t index = static_cast<size_t>(
@@ -183,7 +183,7 @@ FeedStatus MarketDataFeed::getNextEvent(
     if (buffer[index].sequenceID != stats.nextSequence) {
         recordOverflow(stats, oldest);
         stats.overflowed = false;
-        return FeedStatus::OVERFLOW;
+        return FeedStatus::BUFFER_OVERFLOW;
     }
 
     event = buffer[index];

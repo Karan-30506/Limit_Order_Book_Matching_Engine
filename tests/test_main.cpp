@@ -228,7 +228,7 @@ void testMarketDataFeedOverflowRecovery() {
     }
 
     Event event;
-    require(feed.getNextEvent(consumer, event) == FeedStatus::OVERFLOW,
+    require(feed.getNextEvent(consumer, event) == FeedStatus::BUFFER_OVERFLOW,
             "slow feed consumer was not notified of overflow");
     require(feed.recoverConsumer(consumer),
             "feed consumer overflow recovery failed");

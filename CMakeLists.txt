@@ -22,22 +22,30 @@ file(GLOB TESTING_PERFORMANCE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/Testing_and_Performance/src/*.cpp"
 )
 
-add_library(lob_engine STATIC
+add_library(lob_core STATIC
     ${ORDER_BOOK_SOURCES}
     ${MATCHING_ENGINE_SOURCES}
+)
+target_include_directories(lob_core PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/Limit_Order_Book/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Matching_Engine/include"
+)
+
+add_library(lob_engine STATIC
     ${TESTING_PERFORMANCE_SOURCES}
 )
 target_include_directories(lob_engine PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/Limit_Order_Book/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Matching_Engine/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/Testing_and_Performance/include"
 )
-target_link_libraries(lob_engine PUBLIC Threads::Threads)
+target_link_libraries(lob_engine PUBLIC lob_core Threads::Threads)
 
 add_executable(matchingengine Matching_Engine/src/main.cpp)
 target_link_libraries(matchingengine PRIVATE lob_engine)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(lob_core PRIVATE
+        -Wall -Wextra -Wpedantic
+    )
     target_compile_options(lob_engine PRIVATE
         -Wall -Wextra -Wpedantic
     )

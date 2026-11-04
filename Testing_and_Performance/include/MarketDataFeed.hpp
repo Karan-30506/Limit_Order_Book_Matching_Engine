@@ -13,7 +13,7 @@
 enum class FeedStatus {
     EVENT_AVAILABLE,
     NO_EVENT,
-    OVERFLOW,
+    BUFFER_OVERFLOW,
     INVALID_CONSUMER
 };
 

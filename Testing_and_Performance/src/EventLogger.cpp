@@ -166,7 +166,7 @@ FeedStatus EventLogger::getNextEvent(
     const std::size_t index = static_cast<std::size_t>(nextSequence - 1);
     if (index >= events_.size() ||
         events_[index].sequenceID != nextSequence) {
-        return FeedStatus::OVERFLOW;
+        return FeedStatus::BUFFER_OVERFLOW;
     }
 
     event = events_[index];
