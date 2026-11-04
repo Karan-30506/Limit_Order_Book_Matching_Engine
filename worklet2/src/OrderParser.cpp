@@ -90,16 +90,16 @@ bool parseRequest(
         }
     }
 
-    const std::string type = item["type"].get<std::string>();
-    const std::string side = item["side"].get<std::string>();
-
-    request.originalType = type;
-    request.originalSide = side;
     // Validate data types, not business-rule values.
     if (!item["type"].is_string()) {
         error = "'type' must be a string.";
         return false;
     }
+
+    const std::string type = item["type"].get<std::string>();
+    const std::string side = item["side"].get<std::string>();
+    request.originalType = type;
+    request.originalSide = side;
 
     if (!item["side"].is_string()) {
         error = "'side' must be a string.";
@@ -116,10 +116,7 @@ bool parseRequest(
     // Convert recognized values normally.
     // Preserve unsupported values as invalid enum values so
     // the engine can reject them.
-    const std::string req_type = item["type"].get<std::string>();
-    const std::string req_side = item["side"].get<std::string>();
-
-    if (req_type == "LIMIT") {
+    if (type == "LIMIT") {
         request.type = OrderType::Limit;
     } else if (type == "MARKET") {
         request.type = OrderType::Market;
@@ -127,7 +124,7 @@ bool parseRequest(
         request.type = static_cast<OrderType>(-1);
     }
 
-    if (req_side == "BUY") {
+    if (side == "BUY") {
         request.side = Side::Buy;
     } else if (side == "SELL") {
         request.side = Side::Sell;

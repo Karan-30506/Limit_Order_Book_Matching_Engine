@@ -21,6 +21,7 @@ public:
     );
 
     bool submitOrder(const Order& order, OrderType type);
+    SubmissionResult submitOrderDetailed(const Order& order, OrderType type);
     bool cancelOrder(int orderID);
     bool modifyOrder(int orderID, int newPrice, int newQuantity);
 

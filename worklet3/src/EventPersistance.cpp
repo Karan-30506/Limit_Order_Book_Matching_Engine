@@ -18,14 +18,19 @@ void EventLogger::writerLoop() {
 
             line = std::move(writeQueue_.front());
             writeQueue_.pop_front();
+            writerActive_ = true;
         }
 
         file_ << line << '\n';
 
         if (!file_) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            writeFailed_ = true;
-            writeQueue_.clear();
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                writeFailed_ = true;
+                writerActive_ = false;
+                writeQueue_.clear();
+            }
+            condition_.notify_all();
             break;
         }
 
@@ -34,12 +39,22 @@ void EventLogger::writerLoop() {
             count = 0;
 
             if (!file_) {
-                std::lock_guard<std::mutex> lock(mutex_);
-                writeFailed_ = true;
-                writeQueue_.clear();
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    writeFailed_ = true;
+                    writerActive_ = false;
+                    writeQueue_.clear();
+                }
+                condition_.notify_all();
                 break;
             }
         }
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            writerActive_ = false;
+        }
+        condition_.notify_all();
     }
 
     file_.flush();
@@ -48,6 +63,7 @@ void EventLogger::writerLoop() {
         std::lock_guard<std::mutex> lock(mutex_);
         writeFailed_ = true;
     }
+    condition_.notify_all();
 }
 
 bool EventLogger::readEvents(

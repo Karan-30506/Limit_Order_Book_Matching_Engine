@@ -1,24 +1,29 @@
 #include "EventLogger.hpp"
 #include <algorithm>
 #include <chrono>
+#include <limits>
 #include <stdexcept>
 
-EventLogger::EventLogger(const std::string& name) {
+EventLogger::EventLogger(const std::string& name, bool append) {
     std::vector<Event> old;
     std::string error;
 
-    if (!readEvents(name, old, error)) {
+    if (append && !readEvents(name, old, error)) {
         std::ifstream check(name);
         if (check.good()) throw std::runtime_error(error);
     }
 
-    for (const auto& e : old) {
-        events_.push_back(e);
-        lastSequence_ = e.sequenceID;
-        lastTimestamp_ = e.timestamp;
+    if (append) {
+        for (const auto& e : old) {
+            events_.push_back(e);
+            lastSequence_ = e.sequenceID;
+            lastTimestamp_ = e.timestamp;
+        }
     }
 
-    file_.open(name, std::ios::out | std::ios::app | std::ios::binary);
+    const std::ios::openmode mode = std::ios::out | std::ios::binary |
+        (append ? std::ios::app : std::ios::trunc);
+    file_.open(name, mode);
     if (!file_) throw std::runtime_error("Cannot open event log.");
 
     writer_ = std::thread(&EventLogger::writerLoop, this);
@@ -47,6 +52,10 @@ void EventLogger::appendEvent(Event e) {
 
         if (writeFailed_ || stopping_)
             throw std::runtime_error("Event logger unavailable.");
+        if (lastSequence_ == std::numeric_limits<std::uint64_t>::max() ||
+            lastTimestamp_ == std::numeric_limits<std::uint64_t>::max()) {
+            throw std::overflow_error("Event sequence or timestamp limit reached.");
+        }
 
         e.sequenceID = ++lastSequence_;
         e.timestamp = std::max(currentTimestamp(), lastTimestamp_ + 1);
@@ -114,6 +123,30 @@ std::vector<Event> EventLogger::getEvents() const {
 std::uint64_t EventLogger::getLastSequence() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return lastSequence_;
+}
+
+bool EventLogger::getLastEvent(Event& event) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (events_.empty()) {
+        return false;
+    }
+    event = events_.back();
+    return true;
+}
+
+void EventLogger::flush() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    condition_.wait(lock, [this] {
+        return (writeQueue_.empty() && !writerActive_) || writeFailed_;
+    });
+    if (writeFailed_) {
+        throw std::runtime_error("Failed to persist event log.");
+    }
+    file_.flush();
+    if (!file_) {
+        writeFailed_ = true;
+        throw std::runtime_error("Failed to flush event log.");
+    }
 }
 
 FeedStatus EventLogger::getNextEvent(

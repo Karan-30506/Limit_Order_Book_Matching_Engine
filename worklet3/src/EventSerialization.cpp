@@ -72,7 +72,7 @@ bool EventLogger::deserialize(const std::string& line, Event& e) {
     std::uint64_t timestamp = 0;
     int type = 0;
     int orderID = 0;
-    int tradeID = 0;
+    std::uint64_t tradeID = 0;
     int buyOrderID = 0;
     int sellOrderID = 0;
     int side = 0;

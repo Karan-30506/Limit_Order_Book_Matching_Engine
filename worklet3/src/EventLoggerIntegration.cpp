@@ -24,9 +24,9 @@ void EventLoggerIntegration::publishLastEvent() {
         return;
     }
 
-    const std::vector<Event> events = logger_.getEvents();
-    if (events.empty() ||
-        feed_->publish(events.back()) == PublishStatus::INVALID_SEQUENCE) {
+    Event event;
+    if (!logger_.getLastEvent(event) ||
+        feed_->publish(event) == PublishStatus::INVALID_SEQUENCE) {
         throw std::runtime_error("Unable to publish logged event to feed.");
     }
 }
@@ -35,10 +35,18 @@ bool EventLoggerIntegration::submitOrder(
     const Order& order,
     OrderType type
 ) {
+    return submitOrderDetailed(order, type).success;
+}
+
+SubmissionResult EventLoggerIntegration::submitOrderDetailed(
+    const Order& order,
+    OrderType type
+) {
     const std::size_t oldTradeCount = engine_.getTradeCount();
 
-    if (!engine_.submitOrder(order, type)) {
-        return false;
+    const SubmissionResult result = engine_.submitOrderDetailed(order, type);
+    if (!result.success) {
+        return result;
     }
 
     // Log the accepted incoming order first.
@@ -53,7 +61,7 @@ bool EventLoggerIntegration::submitOrder(
         publishLastEvent();
     }
 
-    return true;
+    return result;
 }
 
 bool EventLoggerIntegration::cancelOrder(int orderID) {

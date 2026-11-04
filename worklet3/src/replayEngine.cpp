@@ -15,7 +15,7 @@ struct ReplayState {
     std::map<int, Orders> buys;
     std::map<int, Orders> sells;
     std::unordered_map<int, ReplayOrder> active;
-    std::unordered_set<int> tradeIDs;
+    std::unordered_set<std::uint64_t> tradeIDs;
 
     struct PendingOrder {
         ReplayOrder order;
@@ -82,10 +82,26 @@ ReplayResult ReplayBook::finishPending() {
     const ReplayState::PendingOrder& pending = *state_->pending;
     const int remaining = pending.order.quantity - pending.filledQuantity;
     if (remaining < 0) return {false, 0, "execution quantity exceeds " + orderText(pending.order.id)};
-    if (remaining > 0 && pending.order.orderType == OrderType::Limit) {
-        ReplayOrder remainder = pending.order;
-        remainder.quantity = remaining;
-        addOrder(*state_, remainder);
+    if (remaining > 0) {
+        const Side opposingSide = pending.order.side == Side::Buy
+            ? Side::Sell : Side::Buy;
+        const auto& opposingLevels = sideLevels(*state_, opposingSide);
+        if (pending.order.orderType == OrderType::Market &&
+            !opposingLevels.empty()) {
+            return {false, 0, "market order ended with opposing liquidity remaining"};
+        }
+        if (pending.order.orderType == OrderType::Limit) {
+            const bool crosses = !opposingLevels.empty() &&
+                (pending.order.side == Side::Buy
+                    ? pending.order.price >= opposingLevels.begin()->first
+                    : pending.order.price <= opposingLevels.rbegin()->first);
+            if (crosses) {
+                return {false, 0, "limit order ended with a marketable remainder"};
+            }
+            ReplayOrder remainder = pending.order;
+            remainder.quantity = remaining;
+            addOrder(*state_, remainder);
+        }
     }
     state_->pending.reset();
     return {true, 0, ""};
@@ -112,7 +128,7 @@ ReplayResult ReplayBook::apply(const Event& event) {
     }
 
     if (event.type == EventType::TRADE) {
-        if (event.tradeID <= 0 || event.quantity <= 0 || event.price <= 0 ||
+        if (event.tradeID == 0 || event.quantity <= 0 || event.price <= 0 ||
             event.buyOrderID <= 0 || event.sellOrderID <= 0 ||
             event.buyOrderID == event.sellOrderID || state_->tradeIDs.count(event.tradeID)) {
             return fail(event, "invalid or duplicate trade record");
@@ -124,6 +140,18 @@ ReplayResult ReplayBook::apply(const Event& event) {
         }
         const int restingID = event.buyOrderID == state_->pending->order.id
             ? event.sellOrderID : event.buyOrderID;
+        const Side restingSide = state_->pending->order.side == Side::Buy
+            ? Side::Sell : Side::Buy;
+        const auto& opposingLevels = sideLevels(*state_, restingSide);
+        if (opposingLevels.empty() || opposingLevels.begin()->second.empty()) {
+            return fail(event, "trade has no opposing resting liquidity");
+        }
+        const auto& bestLevel = restingSide == Side::Buy
+            ? opposingLevels.rbegin()->second
+            : opposingLevels.begin()->second;
+        if (bestLevel.front().id != restingID) {
+            return fail(event, "trade violates price-time priority");
+        }
         auto resting = state_->active.find(restingID);
         if (resting == state_->active.end()) return fail(event, "trade references an unknown resting order");
         if (resting->second.side == state_->pending->order.side ||
@@ -168,6 +196,13 @@ ReplayResult ReplayBook::apply(const Event& event) {
         }
         auto finished = finishPending();
         if (!finished.success) return fail(event, finished.message);
+        const auto canceled = state_->active.find(event.orderID);
+        if (canceled == state_->active.end() ||
+            canceled->second.side != event.side ||
+            canceled->second.price != event.price ||
+            canceled->second.quantity != event.quantity) {
+            return fail(event, "cancel fields do not match the resting order");
+        }
         if (!removeOrder(*state_, event.orderID)) {
             return fail(event, "cancel references an inconsistent order");
         }
@@ -283,7 +318,8 @@ std::vector<std::string> ReplayBook::compareWith(Book& liveBook) const {
         }
         if (actual->second.side != expectedOrder.side ||
             actual->second.price != expectedOrder.price ||
-            actual->second.quantity != expectedOrder.quantity) {
+            actual->second.quantity != expectedOrder.quantity ||
+            actual->second.timestamp != expectedOrder.timestamp) {
             differences.push_back("active order " + std::to_string(expectedOrder.id) + " differs");
         }
         actualByID.erase(actual);

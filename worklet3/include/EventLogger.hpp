@@ -17,7 +17,7 @@
 
 class EventLogger {
 public:
-    explicit EventLogger(const std::string& fileName);
+    explicit EventLogger(const std::string& fileName, bool append = true);
 
     ~EventLogger();
 
@@ -31,6 +31,8 @@ public:
 
     std::vector<Event> getEvents() const;
     std::uint64_t getLastSequence() const;
+    bool getLastEvent(Event& event) const;
+    void flush();
 
     FeedStatus getNextEvent(
         std::uint64_t& nextSequence,
@@ -58,6 +60,7 @@ private:
 
     bool stopping_ = false;
     bool writeFailed_ = false;
+    bool writerActive_ = false;
 
     void appendEvent(Event event);
     void writerLoop();

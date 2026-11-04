@@ -1,76 +1,76 @@
 # Limit Order Book Matching Engine
 
-A C++ command-line Limit Order Book Matching Engine. The program reads order requests from a JSON file, processes them sequentially, matches compatible orders, records generated trades, and writes a detailed log for the run.
+A C++17 command-line limit order book that processes JSON order requests sequentially, records trades, persists a checksummed event log, and validates the reconstructed state using Worklet 3's replay engine.
 
-## Features
+## What is integrated
 
-- Reads order requests from JSON input files.
-- Supports `LIMIT` and `MARKET` orders, on both `BUY` and `SELL` sides.
-- Processes requests sequentially through the matching engine.
-- Records executed trades and reports execution quantities and order outcomes.
-- Writes detailed per-order and trade logs to a file.
-- Prints a final summary of requests, accepted/rejected orders, and recorded trades.
-- Includes hand-designed JSON scenarios and a Python script for generating larger random datasets.
+- **Worklet 1:** intrusive FIFO order queues, AVL price-level trees, indexed order/book storage and best-price access.
+- **Worklet 2:** limit and market matching, price-time priority, JSON parsing and the command-line application.
+- **Worklet 3:** asynchronous event persistence, bounded market-data feed, event-sourced replay, live-book consistency validation and performance metrics.
 
-## Requirements
+Worklet 3 is included in the shared `lob_engine` library and used by the command-line application. Its replay engine is the sole C++ replay implementation. The older Worklet 2 snapshot exporter was removed. The existing browser UI files remain in the repository but are not part of the current application flow; Qt is future work.
+
+## Requirements and build
 
 - CMake 3.15 or later
-- MinGW-w64 / `g++`
-- C++14 support
-- Python 3 (only required to generate random test data)
+- A C++17 compiler
+- Threads support
+- Python 3 only for generating random input
 
-## Project layout
-
-```text
-Limit_Order_Book_Matching_Engine/
-├── CMakeLists.txt
-├── include/                     # Worklet 1 headers
-├── src/                         # Worklet 1 source files
-├── worklet2/
-│   ├── include/                 # Worklet 2 headers, including nlohmann/json.hpp
-│   ├── src/                     # Matching engine, replay exporter, and related source files
-│   └── test/                    # JSON test datasets
-├── visualizer/
-│   ├── index.html               # Browser-based trading terminal UI
-│   ├── styles.css               # Premium dark trading-terminal styling
-│   ├── app.js                   # Replay loading, rendering, and playback controls
-│   └── replay.json              # Generated replay output (after running the engine)
-├── generate_stress_test.py      # Random test-data generator (project root)
-├── build/                       # Generated build files (not committed)
-└── log/                         # Generated logs
-```
-
-## Build
-
-Run these commands from the project root in PowerShell or a terminal.
-
-Configure CMake for MinGW Makefiles:
+From the project root:
 
 ```powershell
 cmake -S . -B build -G "MinGW Makefiles"
-```
-
-Compile:
-
-```powershell
 cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-The executable should be created at `build/matchingengine.exe`.
+The build produces `build/matchingengine.exe` and the unified `lob_tests` CTest target. Tests for the data structures, matching rules, event log, feed, replay, parser and performance summary live in one consolidated test executable.
 
-If you change CMake configuration or add/remove source files, re-run the configure command and build.
-
-## Run the program
-
-Pass a JSON file path as the first command-line argument:
+## Run orders
 
 ```powershell
-.\build\matchingengine.exe .\worklet2\test\order_requests.json
+.\build\matchingengine.exe .\worklet2\test\02_limit_full_match.json
 ```
 
-### Run the designed scenarios
+The input is a JSON array with `id`, `type`, `side`, `price` and `quantity` fields. `type` is `LIMIT` or `MARKET`; `side` is `BUY` or `SELL`. A market order's price is ignored (the included datasets use zero). Wrong field types and malformed individual records are written as parser rejections instead of terminating the process.
 
-These commands assume the scenario JSON files are present in `worklet2/test/`:
+The executable checks each accepted order/trade event stream by replaying it and comparing the resulting book with the live book. A mismatch or replay error returns a failure.
+
+### Generated output
+
+Output is written under `log/` using the input filename (without extension):
+
+- `<name>_logs.log` — detailed per-order results and final summary.
+- `<name>_reject.log` — parser- and engine-level rejections.
+- `<name>_events.log` — checksummed, sequential Worklet 3 event log.
+- `<name>_latency.csv` — per parsed order's engine handling time, outcome and rejection reason.
+
+The event and output logs are overwritten for each run of the same input basename. The event file can be replayed independently:
+
+```powershell
+.\build\matchingengine.exe --replay .\log\02_limit_full_match_events.log
+```
+
+The console summary reports average and p50/p95/p99/max engine-handling latency, submitted orders per second and trades per second. These are local sequential CLI measurements: individual latency includes matching, event logging and feed publication; throughput covers the request loop, including per-order log formatting, and excludes initial JSON parsing and final flush/replay validation. Do not treat them as production or concurrent-server benchmarks.
+
+## Supplied scenarios
+
+The `worklet2/test/` directory contains:
+
+| File | Scenario |
+|---|---|
+| `01_limit_orders_resting.json` | Non-crossing limit orders rest in the book |
+| `02_limit_full_match.json` | Limit-order matches |
+| `03_limit_partial_fill_remainder.json` | Partial fills and limit remainders |
+| `04_market_buy_multilevel.json` | Market buys across ask levels |
+| `05_market_sell_multilevel.json` | Market sells across bid levels |
+| `06_market_insufficient_liquidity.json` | Market orders with insufficient liquidity |
+| `07_same_price_fifo.json` | FIFO queue priority at a shared price |
+| `stress_test_10000.json` | 10,000-request functional stress dataset |
+| `test_random_250.json`, `test_random_300.json` | Randomized datasets |
+
+Run all seven designed scenarios, for example:
 
 ```powershell
 .\build\matchingengine.exe .\worklet2\test\01_limit_orders_resting.json
@@ -82,223 +82,25 @@ These commands assume the scenario JSON files are present in `worklet2/test/`:
 .\build\matchingengine.exe .\worklet2\test\07_same_price_fifo.json
 ```
 
-## Input JSON format
-
-The input file contains a JSON array. Each request has these fields:
-
-| Field | Description | Example |
-|---|---|---|
-| `id` | Order identifier | `1001` |
-| `type` | `LIMIT` or `MARKET` | `"LIMIT"` |
-| `side` | `BUY` or `SELL` | `"BUY"` |
-| `price` | Limit price; generated market orders use `0` | `100` |
-| `quantity` | Requested quantity | `10` |
-
-Example:
-
-```json
-[
-  {
-    "id": 1001,
-    "type": "LIMIT",
-    "side": "SELL",
-    "price": 100,
-    "quantity": 10
-  },
-  {
-    "id": 1002,
-    "type": "LIMIT",
-    "side": "BUY",
-    "price": 105,
-    "quantity": 6
-  }
-]
-```
-
-Here, the buy order's limit price (105) is at least the sell order's price (100), so they can match under the engine's matching rules.
-
-## Test datasets
-
-| File | Intended purpose |
-|---|---|
-| `order_requests.json` | Original project input dataset |
-| `01_limit_orders_resting.json` | Non-crossing limit orders expected to rest in the book |
-| `02_limit_full_match.json` | Limit orders designed to produce full matches |
-| `03_limit_partial_fill_remainder.json` | Exercises partial fills and remaining limit quantity |
-| `04_market_buy_multilevel.json` | Market buys consuming sell-side liquidity across price levels |
-| `05_market_sell_multilevel.json` | Market sells consuming buy-side liquidity across price levels |
-| `06_market_insufficient_liquidity.json` | Market orders with more requested quantity than available opposing liquidity |
-| `07_same_price_fifo.json` | Exercises FIFO behavior for orders at the same price |
-
-The scenario descriptions explain their intent. Verify the actual result using the generated logs.
-
-### Why can the trade count be zero?
-
-An accepted order does not necessarily generate a trade. For example, if the highest buy price is 89 and the lowest sell price is 110, the prices do not cross (`89 < 110`). Orders can remain in the book without any execution, so zero recorded trades is expected.
-
-A buy limit order can match when its price is greater than or equal to the best sell price. A sell limit order can match when its price is less than or equal to the best buy price. Market orders consume available opposing liquidity; under the current project rules, an unfilled market-order remainder is discarded rather than resting in the book.
-
-## Generate random stress-test data
-
-Keep `generate_stress_test.py` in the project root. Generate 500 requests:
+The generator is [`generate_test_cases.py`](generate_test_cases.py):
 
 ```powershell
-python generate_stress_test.py 500
+python generate_test_cases.py 10000
+python generate_test_cases.py 500 --seed 7
+python generate_test_cases.py 500 --output .\worklet2\test\my_stress_test.json
 ```
 
-Default output:
+## Project layout
 
 ```text
-worklet2/test/test_random_500.json
+include/, src/                 Worklet 1 data structures
+worklet2/include/, src/        Worklet 2 engine, parser and CLI
+worklet2/test/                 JSON datasets
+worklet3/include/, src/        Worklet 3 events, feed, replay and metrics
+tests/test_main.cpp            Consolidated project tests
+visualizer/                    Legacy browser UI, currently not wired to the CLI
 ```
 
-Generate 10,000 requests:
+## Matching rules
 
-```powershell
-python generate_stress_test.py 10000
-```
-
-Use a different seed:
-
-```powershell
-python generate_stress_test.py 500 --seed 7
-```
-
-Choose a custom output path:
-
-```powershell
-python generate_stress_test.py 500 --output .\worklet2\test\my_stress_test.json
-```
-
-Run the generated file:
-
-```powershell
-.\build\matchingengine.exe .\worklet2\test\test_random_500.json
-```
-
-The generator creates a workload; it does not guarantee every order will match or every edge case will be covered.
-
-## Browser replay visualizer
-
-The project includes a browser-based visualizer in the project-root `visualizer/` directory. It presents the matching engine's replay as a compact trading-terminal interface, using a dark navy/slate palette, emerald bid-side accents, restrained coral ask-side accents, monospaced market values, and relative-volume bars in the order book.
-
-### Features
-
-- Loads a replay JSON file through the browser's **Load replay** file picker.
-- Shows best bid, best ask, bid–ask spread, and the most recent execution seen up to the selected replay step.
-- Displays bid and ask price levels, aggregate volume, and the number of resting orders at each level.
-- Inspects the current incoming order and shows the engine's acceptance/rejection result.
-- Displays trades generated by the selected request, including trade ID, buy/sell order IDs, price, and quantity.
-- Supports first/previous/next/last controls, a timeline for jumping to a request, a step slider, and adjustable playback speed.
-- Supports keyboard shortcuts while focus is not in an input: **Left/Right Arrow** to step and **Space** to play/pause.
-
-### Generate and open a replay
-
-Run the matching engine from the **project root** so its relative output paths resolve as expected. For example:
-
-```powershell
-.\\build\\matchingengine.exe .\\worklet2\\test\\04_market_buy_multilevel.json
-```
-
-The replay exporter is expected to write the replay file to:
-
-```text
-visualizer/replay.json
-```
-
-Then open `visualizer/index.html` in a browser and select `visualizer/replay.json` using **Load replay**. The visualizer reads the file locally in the browser; it does not require a web server or connect to a live market feed.
-
-> **Replay granularity:** the current replay format records a snapshot after each submitted order. Playback therefore advances request by request, not through every individual fill inside one matching operation. Fill-by-fill animation would require the C++ matching logic/exporter to emit intermediate matching events.
-
-The displayed prices, quantities, and trades come from the loaded replay file. The UI does not generate trades or alter the matching engine's decisions.
-
-## Logs
-
-For input `worklet2/test/02_limit_full_match.json`, the log is written to:
-
-```text
-log/02_limit_full_match_logs.log
-```
-
-The program creates the `log/` directory if needed and overwrites the corresponding log on each run of the same input basename.
-
-Detailed per-order logs include order information, trades generated by that submission, executed quantity, order outcome, remaining quantity, and whether the remainder rests in the book or is discarded. Trade details include trade ID, buy order ID, sell order ID, execution price, and quantity.
-
-The console shows startup information and the final summary; detailed per-order and trade information is written to the log.
-
-Read a log in PowerShell:
-
-```powershell
-Get-Content .\log\02_limit_full_match_logs.log
-```
-
-Read only the last 50 lines:
-
-```powershell
-Get-Content .\log\02_limit_full_match_logs.log -Tail 50
-```
-
-## Understanding the final summary
-
-The summary reports total requests, accepted requests, rejected requests, and recorded trades.
-
-Accepted/rejected requests and trades are different counts. An accepted order can generate zero trades if there is no compatible opposing order. One incoming order can also generate multiple trades if it matches multiple resting orders.
-
-## Troubleshooting
-
-### CMake or compiler not found
-
-```powershell
-cmake --version
-g++ --version
-python --version
-```
-
-Python is only needed for the stress-test generator.
-
-### Input file cannot be opened
-
-- Confirm the file exists and the path is correct.
-- Run the executable from the project root when using the relative paths above.
-- Check the filename and extension.
-
-### JSON parsing fails
-
-- Ensure the file is a JSON array.
-- Check the required fields: `id`, `type`, `side`, `price`, and `quantity`.
-- Use supported values: `LIMIT`/`MARKET` and `BUY`/`SELL`.
-- Check commas, quotes, and brackets.
-
-### A scenario reports zero trades
-
-Check whether its limit prices cross. Start with `02_limit_full_match.json` or a market-order scenario to exercise matching. If a scenario designed to match still produces no trades, inspect its log and debug the matching and trade-recording path.
-
-### Rebuild after changes
-
-```powershell
-cmake --build build
-```
-
-If you need to reconfigure as well:
-
-```powershell
-cmake -S . -B build -G "MinGW Makefiles"
-cmake --build build
-```
-
-## Git hygiene
-
-Generated build files, executables, and logs generally should not be committed. Typical `.gitignore` entries:
-
-```gitignore
-/build/
-/log/
-*.exe
-*.o
-```
-
-Commit source files, headers, `CMakeLists.txt`, test JSON files, `generate_stress_test.py`, and the vendored `nlohmann/json.hpp` header.
-
-## Scope
-
-The C++ command-line matching engine remains the source of truth for order validation, matching, and trade generation. The root-level `visualizer/` folder is a static browser frontend for exploring exported replay snapshots; it does not replace or modify the engine. Commands and paths reflect the current CMake/MinGW workflow described for the project. For exact validation and matching semantics, refer to the current source code and tests.
+The best opposing price is matched first; orders at the same price are matched FIFO. Trades execute at the resting order's price. An unmatched limit remainder rests in the book. An unmatched market remainder is discarded.
