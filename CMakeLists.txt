@@ -42,6 +42,17 @@ target_link_libraries(lob_engine PUBLIC lob_core Threads::Threads)
 add_executable(matchingengine Matching_Engine/src/main.cpp)
 target_link_libraries(matchingengine PRIVATE lob_engine)
 
+function(use_static_gnu_runtime target)
+    if(WIN32 AND MINGW)
+        target_link_options(${target} PRIVATE
+            -static-libgcc
+            -static-libstdc++
+        )
+    endif()
+endfunction()
+
+use_static_gnu_runtime(matchingengine)
+
 option(BUILD_QT_GUI "Build the Qt 6 desktop application" OFF)
 if(BUILD_QT_GUI)
     find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets OpenGLWidgets PrintSupport)
@@ -132,6 +143,7 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(lob_tests tests/test_main.cpp)
     target_link_libraries(lob_tests PRIVATE lob_engine)
+    use_static_gnu_runtime(lob_tests)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(lob_tests PRIVATE
             -Wall -Wextra -Wpedantic
@@ -149,6 +161,7 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include"
     )
     target_link_libraries(engine_service_tests PRIVATE lob_engine)
+    use_static_gnu_runtime(engine_service_tests)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(engine_service_tests PRIVATE
             -Wall -Wextra -Wpedantic

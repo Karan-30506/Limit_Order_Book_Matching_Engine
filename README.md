@@ -145,6 +145,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 The CLI executable is `build\matchingengine.exe`. The CLI-only CTest configuration runs the core and engine-service test targets.
+On Windows MinGW builds, the CLI and CLI test executables statically link the GNU C++ runtime. This avoids crashes when a different MinGW kit (such as the Qt GUI kit) appears earlier on `PATH`.
 
 ### Input JSON
 
@@ -224,21 +225,26 @@ Outputs for the same input basename are overwritten by the next run.
 
 ## Build and run the Qt GUI (Windows)
 
-Install a Qt 6 SDK with a compiler-matched kit first. For the Qt installation used to verify this repository, configure with Qt 6.12.0 and its MinGW 13.1 toolchain:
+Install a Qt 6 SDK with a compiler-matched kit first. Use **`build-gui` consistently** as the GUI build directory. For the Qt installation used to verify this repository, configure with Qt 6.12.0 and its MinGW 13.1 toolchain:
 
 ```powershell
 cmake -S . -B build-gui -G "MinGW Makefiles" `
   -DCMAKE_BUILD_TYPE=Release `
   -DBUILD_QT_GUI=ON `
-  -DCMAKE_PREFIX_PATH="D:\Qt\6.12.0\mingw_64" `
-  -DCMAKE_CXX_COMPILER="D:\Qt\Tools\mingw1310_64\bin\g++.exe" `
-  -DCMAKE_MAKE_PROGRAM="D:\Qt\Tools\mingw1310_64\bin\mingw32-make.exe" `
+  -DCMAKE_PREFIX_PATH="D:/Qt/6.12.0/mingw_64" `
+  -DCMAKE_CXX_COMPILER="D:/Qt/Tools/mingw1310_64/bin/g++.exe" `
+  -DCMAKE_MAKE_PROGRAM="D:/Qt/Tools/mingw1310_64/bin/mingw32-make.exe" `
   -DCMAKE_RC_COMPILER=D:/Qt/Tools/mingw1310_64/bin/windres.exe
-cmake --build build-gui --target lob_gui --parallel
+cmake --build build-gui --parallel
+```
+
+The GUI executable is always in the build directory selected with `-B`. With the commands above, run it with:
+
+```powershell
 .\build-gui\lob_gui.exe
 ```
 
-If Qt is installed elsewhere, update the Qt and toolchain paths together. Do not mix compilers from different Qt kits. The resource compiler path above uses forward slashes intentionally for CMake compatibility.
+Close the GUI before rebuilding it, because Windows locks a running executable. If Qt is installed elsewhere, update the Qt and toolchain paths together. Do not mix compilers from different Qt kits. The resource compiler path uses forward slashes intentionally for CMake compatibility.
 
 Run the GUI-enabled tests with the Qt and compiler runtime directories on `PATH`:
 
@@ -256,6 +262,16 @@ cmake --build build-gui --target package_lob_gui
 ```
 
 The packaged executable and dependencies are placed in `build-gui\dist`. Review the Qt and QCustomPlot license terms before redistribution.
+
+### Build directory locations
+
+CMake writes generated files and executables to the directory passed after `-B`; it does not have one global “final build” folder. This repository's recommended convention is:
+
+- `build\` — CLI-only build (`BUILD_QT_GUI=OFF`).
+- `build-gui\` — canonical Qt GUI build and executable (`build-gui\lob_gui.exe`).
+- `build-gui\dist\` — optional packaged Windows GUI deployment.
+
+Other folders such as `build-gui-qt\` and `build-gui-verify\` are separate build trees created by earlier verification attempts with different toolchain/configuration settings. They are not required and are not kept synchronized with `build-gui\`. To avoid launching an outdated GUI, rebuild and run from the same directory: `cmake --build build-gui --parallel`, then `.\build-gui\lob_gui.exe`.
 
 The GUI has single-window navigation for the order book, order management, replay, metrics and CSV viewing. It displays separate buy/sell trees with FIFO queue inspection, supports order operations and JSON/CSV order loading, and provides forward replay controls, event browsing, charts and metrics export. GUI throughput charts measure session rates and include idle time; use CLI runs for performance measurements.
 

@@ -111,6 +111,9 @@ private:
     bool batchCancelRequested_ = false;
     bool reducedMotion_ = false;
     bool treeOpenGl_ = true;
+    bool latencyRangeLocked_ = false;
+    bool activityRangeLocked_ = false;
+    bool throughputRangeLocked_ = false;
     std::uint64_t nextRequestID_ = 1;
     std::uint64_t resetRequestID_ = 0;
     std::uint64_t replayValidationRequestID_ = 0;
@@ -187,6 +190,7 @@ private:
     QPushButton* cancelBatchButton_ = nullptr;
     QPushButton* loadOrderButton_ = nullptr;
     QPushButton* resetBookButton_ = nullptr;
+    QPushButton* resetChartZoomButton_ = nullptr;
     QPushButton* csvPreviousButton_ = nullptr;
     QPushButton* csvNextButton_ = nullptr;
     QLineEdit* csvFilterInput_ = nullptr;

@@ -853,6 +853,16 @@ QWidget* MainWindow::createMetricsPanel() {
     });
     artifactControls->addWidget(viewReportButton);
     artifactControls->addStretch();
+    resetChartZoomButton_ = new QPushButton(QStringLiteral("Reset chart zoom"));
+    resetChartZoomButton_->setToolTip(
+        QStringLiteral("Resume automatic tracking for all metric charts."));
+    connect(resetChartZoomButton_, &QPushButton::clicked, this, [this] {
+        latencyRangeLocked_ = false;
+        activityRangeLocked_ = false;
+        throughputRangeLocked_ = false;
+        updateMetricsDashboard();
+    });
+    artifactControls->addWidget(resetChartZoomButton_);
     layout->addLayout(artifactControls);
     artifactPaths_ = new QLabel;
     artifactPaths_->setObjectName(QStringLiteral("mutedText"));
@@ -861,6 +871,7 @@ QWidget* MainWindow::createMetricsPanel() {
 
     auto* chartTabs = new QTabWidget;
     latencyPlot_ = new QCustomPlot;
+    latencyPlot_->setObjectName(QStringLiteral("latencyPlot"));
     latencyPlot_->setBackground(QColor("#181825"));
     latencyPlot_->addGraph();
     latencyPlot_->graph(0)->setPen(QPen(QColor("#cba6f7"), 2));
@@ -879,6 +890,7 @@ QWidget* MainWindow::createMetricsPanel() {
     chartTabs->addTab(latencyPlot_, QStringLiteral("Latency"));
 
     activityPlot_ = new QCustomPlot;
+    activityPlot_->setObjectName(QStringLiteral("activityPlot"));
     activityPlot_->setBackground(QColor("#181825"));
     activityPlot_->legend->setVisible(true);
     activityPlot_->legend->setBrush(QColor("#1e1e2e"));
@@ -901,6 +913,7 @@ QWidget* MainWindow::createMetricsPanel() {
     chartTabs->addTab(activityPlot_, QStringLiteral("Session activity"));
 
     throughputPlot_ = new QCustomPlot;
+    throughputPlot_->setObjectName(QStringLiteral("throughputPlot"));
     throughputPlot_->setBackground(QColor("#181825"));
     throughputPlot_->legend->setVisible(true);
     throughputPlot_->legend->setBrush(QColor("#1e1e2e"));
@@ -921,6 +934,18 @@ QWidget* MainWindow::createMetricsPanel() {
     throughputPlot_->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
     throughputPlot_->setMinimumHeight(420);
     chartTabs->addTab(throughputPlot_, QStringLiteral("Throughput"));
+    connect(latencyPlot_, &QCustomPlot::mousePress, this,
+            [this](QMouseEvent*) { latencyRangeLocked_ = true; });
+    connect(latencyPlot_, &QCustomPlot::mouseWheel, this,
+            [this](QWheelEvent*) { latencyRangeLocked_ = true; });
+    connect(activityPlot_, &QCustomPlot::mousePress, this,
+            [this](QMouseEvent*) { activityRangeLocked_ = true; });
+    connect(activityPlot_, &QCustomPlot::mouseWheel, this,
+            [this](QWheelEvent*) { activityRangeLocked_ = true; });
+    connect(throughputPlot_, &QCustomPlot::mousePress, this,
+            [this](QMouseEvent*) { throughputRangeLocked_ = true; });
+    connect(throughputPlot_, &QCustomPlot::mouseWheel, this,
+            [this](QWheelEvent*) { throughputRangeLocked_ = true; });
     layout->addWidget(chartTabs, 1);
     return panel;
 }
@@ -942,6 +967,9 @@ void MainWindow::resetSession() {
     displayedTradeCount_ = 0;
     nextTimestamp_ = 1;
     latencyPoints_.clear();
+    latencyRangeLocked_ = false;
+    activityRangeLocked_ = false;
+    throughputRangeLocked_ = false;
     plottedActivitySubmission_ = 0;
     replayEventCount_ = 0;
     replayCursor_ = 0;
@@ -980,6 +1008,7 @@ void MainWindow::resetSession() {
         for (int graph = 0; graph < throughputPlot_->graphCount(); ++graph) {
             throughputPlot_->graph(graph)->data()->clear();
         }
+        throughputRangeLocked_ = false;
         throughputPlot_->xAxis->setRange(0, 60);
         throughputPlot_->yAxis->setRange(0, 10);
         throughputPlot_->replot();
@@ -1677,11 +1706,12 @@ void MainWindow::updateMetricsDashboard() {
     }
     const double latestSubmission = static_cast<double>(submissionCalls_);
     latencyPlot_->graph(0)->data()->removeBefore(std::max(0.0, latestSubmission - 20000.0));
-    latencyPlot_->xAxis->setRange(std::max(0.0, latestSubmission - 100.0),
-                                  std::max(10.0, latestSubmission));
-    const double maxLatency = latencyPoints_.empty()
-        ? 0.0 : *std::max_element(latencyPoints_.begin(), latencyPoints_.end());
-    latencyPlot_->yAxis->setRange(0.0, std::max(0.001, maxLatency * 1.2));
+    if (!latencyRangeLocked_) {
+        const double typicalLatency = sortedLatency.empty() ? 0.0 : percentile(0.99);
+        latencyPlot_->xAxis->setRange(std::max(0.0, latestSubmission - 100.0),
+                                      std::max(10.0, latestSubmission));
+        latencyPlot_->yAxis->setRange(0.0, std::max(0.001, typicalLatency * 1.2));
+    }
 
     if (submissionCalls_ > plottedActivitySubmission_) {
         const double eventCount = static_cast<double>(loggedEvents);
@@ -1722,20 +1752,30 @@ void MainWindow::updateMetricsDashboard() {
                 std::max(0.0, static_cast<double>(throughputSampleIndex_) - 300.0));
             throughputPlot_->graph(2)->data()->removeBefore(
                 std::max(0.0, static_cast<double>(throughputSampleIndex_) - 300.0));
-            throughputPlot_->xAxis->setRange(
-                std::max(0.0, static_cast<double>(throughputSampleIndex_) - 60.0),
-                std::max(60.0, static_cast<double>(throughputSampleIndex_)));
-            const double maxRate = std::max({submittedRate, acceptedRate, tradeRate});
-            throughputPlot_->yAxis->setRange(0.0, std::max(10.0, maxRate * 1.15));
             throughputPlot_->replot(QCustomPlot::rpQueuedReplot);
         }
     }
-    activityPlot_->xAxis->setRange(std::max(0.0, latestSubmission - 100.0),
-                                   std::max(10.0, latestSubmission));
-    activityPlot_->yAxis->setRange(0.0, std::max(
-        10.0, std::max(static_cast<double>(acceptedOrders_),
-                       std::max(static_cast<double>(bookSnapshot_.trades.size()),
-                                static_cast<double>(loggedEvents))) * 1.15));
+    if (!activityRangeLocked_) {
+        activityPlot_->xAxis->setRange(std::max(0.0, latestSubmission - 100.0),
+                                       std::max(10.0, latestSubmission));
+        activityPlot_->yAxis->setRange(0.0, std::max(
+            10.0, std::max(static_cast<double>(acceptedOrders_),
+                           std::max(static_cast<double>(bookSnapshot_.trades.size()),
+                                    static_cast<double>(loggedEvents))) * 1.15));
+    }
+    if (!throughputRangeLocked_) {
+        throughputPlot_->xAxis->setRange(
+            std::max(0.0, static_cast<double>(throughputSampleIndex_) - 60.0),
+            std::max(60.0, static_cast<double>(throughputSampleIndex_)));
+        double maxRate = 10.0;
+        for (int graph = 0; graph < throughputPlot_->graphCount(); ++graph) {
+            bool foundRange = false;
+            const QCPRange valueRange =
+                throughputPlot_->graph(graph)->getValueRange(foundRange);
+            if (foundRange) maxRate = std::max(maxRate, valueRange.upper);
+        }
+        throughputPlot_->yAxis->setRange(0.0, maxRate * 1.15);
+    }
     latencyPlot_->replot(QCustomPlot::rpQueuedReplot);
     activityPlot_->replot(QCustomPlot::rpQueuedReplot);
     submittedMetricValue_->setText(QString::number(submissionCalls_));
