@@ -1,0 +1,12 @@
+{
+  "steps": [
+    {"type": "LIMIT", "side": "SELL", "id": 1, "price": 100, "quantity": 5},
+    {"type": "LIMIT", "side": "BUY", "id": 2, "price": 100, "quantity": 5},
+    {"type": "EXPECT_TRADE", "buyId": 2, "sellId": 1, "price": 100, "quantity": 5},
+    {"type": "LIMIT", "side": "SELL", "id": 1, "price": 100, "quantity": 3},
+    {"type": "EXPECT_ACCEPT"},
+    {"type": "LIMIT", "side": "BUY", "id": 2, "price": 100, "quantity": 3},
+    {"type": "EXPECT_ACCEPT"},
+    {"type": "EXPECT_TRADE", "buyId": 2, "sellId": 1, "price": 100, "quantity": 3}
+  ]
+}

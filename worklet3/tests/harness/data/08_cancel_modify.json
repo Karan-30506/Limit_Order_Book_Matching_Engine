@@ -1,0 +1,27 @@
+{
+  "steps": [
+    {"type": "LIMIT", "side": "BUY", "id": 1, "price": 100, "quantity": 10},
+    {"type": "LIMIT", "side": "BUY", "id": 2, "price": 100, "quantity": 10},
+    {"type": "CANCEL", "id": 1},
+    {"type": "EXPECT_ACCEPT"},
+    {"type": "EXPECT_QUEUE", "side": "BUY", "price": 100, "ids": [2]},
+    {"type": "CANCEL", "id": 1},
+    {"type": "EXPECT_REJECT"},
+    {"type": "CANCEL", "id": 999},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": 3, "price": 100, "quantity": 10},
+    {"type": "MODIFY", "id": 2, "price": 100, "quantity": 20},
+    {"type": "EXPECT_ACCEPT"},
+    {"type": "EXPECT_QUEUE", "side": "BUY", "price": 100, "ids": [3, 2]},
+    {"type": "MODIFY", "id": 3, "price": 98, "quantity": 5},
+    {"type": "EXPECT_QUEUE", "side": "BUY", "price": 100, "ids": [2]},
+    {"type": "EXPECT_QUEUE", "side": "BUY", "price": 98, "ids": [3]},
+    {"type": "MODIFY", "id": 3, "price": 0, "quantity": 5},
+    {"type": "EXPECT_REJECT"},
+    {"type": "MODIFY", "id": 3, "price": 98, "quantity": 0},
+    {"type": "EXPECT_REJECT"},
+    {"type": "CANCEL", "id": 2},
+    {"type": "CANCEL", "id": 3},
+    {"type": "EXPECT_BEST_BID", "price": "NONE"}
+  ]
+}

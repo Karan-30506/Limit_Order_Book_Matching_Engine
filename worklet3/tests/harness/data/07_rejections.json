@@ -1,0 +1,22 @@
+{
+  "steps": [
+    {"type": "LIMIT", "side": "BUY", "id": 0, "price": 100, "quantity": 10},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": -3, "price": 100, "quantity": 10},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": 1, "price": 100, "quantity": 0},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": 1, "price": 0, "quantity": 10},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": 1, "price": -5, "quantity": 10},
+    {"type": "EXPECT_REJECT"},
+    {"type": "MARKET", "side": "SELL", "id": 1, "quantity": -1},
+    {"type": "EXPECT_REJECT"},
+    {"type": "LIMIT", "side": "BUY", "id": 7, "price": 100, "quantity": 10},
+    {"type": "EXPECT_ACCEPT"},
+    {"type": "LIMIT", "side": "SELL", "id": 7, "price": 200, "quantity": 10},
+    {"type": "EXPECT_REJECT"},
+    {"type": "EXPECT_BEST_ASK", "price": "NONE"},
+    {"type": "EXPECT_VOLUME", "side": "BUY", "price": 100, "quantity": 10}
+  ]
+}

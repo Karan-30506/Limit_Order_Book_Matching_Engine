@@ -1,0 +1,9 @@
+{
+  "steps": [
+    {"type": "LIMIT", "side": "BUY", "id": 1, "price": 100, "quantity": 10},
+    {"type": "LIMIT", "side": "SELL", "id": 2, "price": 100, "quantity": 10},
+    {"type": "EXPECT_TRADE", "buyId": 1, "sellId": 2, "price": 100, "quantity": 10},
+    {"type": "EXPECT_BEST_BID", "price": "NONE"},
+    {"type": "EXPECT_BEST_ASK", "price": "NONE"}
+  ]
+}
