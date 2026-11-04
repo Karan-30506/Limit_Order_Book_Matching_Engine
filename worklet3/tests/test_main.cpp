@@ -14,6 +14,8 @@
 #include "replay_tests.hpp"
 #include "replayEngine.hpp"
 
+void runBookScalabilityTests();
+
 void testBenchmark() {
     using worklet3::calculateLatencyStats;
 
@@ -191,6 +193,9 @@ void testEventLoggerAndMatching() {
 int main() {
     
     std::cout << " all tests:\n";
+
+    std::cout << "\nbook scalability tests:\n";
+    runBookScalabilityTests();
     
     testBenchmark();
 
