@@ -30,7 +30,7 @@ The build produces `build/matchingengine.exe` and the unified `lob_tests` CTest 
 ## Run orders
 
 ```powershell
-.\build\matchingengine.exe .\worklet2\test\02_limit_full_match.json
+.\build\matchingengine.exe .\tests\data\02_limit_full_match.json
 ```
 
 The input is a JSON array with `id`, `type`, `side`, `price` and `quantity` fields. `type` is `LIMIT` or `MARKET`; `side` is `BUY` or `SELL`. A market order's price is ignored (the included datasets use zero). Wrong field types and malformed individual records are written as parser rejections instead of terminating the process.
@@ -56,49 +56,58 @@ The console summary reports average and p50/p95/p99/max engine-handling latency,
 
 ## Supplied scenarios
 
-The `worklet2/test/` directory contains:
+The `tests/data/` directory contains:
 
-| File | Scenario |
-|---|---|
-| `01_limit_orders_resting.json` | Non-crossing limit orders rest in the book |
-| `02_limit_full_match.json` | Limit-order matches |
-| `03_limit_partial_fill_remainder.json` | Partial fills and limit remainders |
-| `04_market_buy_multilevel.json` | Market buys across ask levels |
-| `05_market_sell_multilevel.json` | Market sells across bid levels |
-| `06_market_insufficient_liquidity.json` | Market orders with insufficient liquidity |
-| `07_same_price_fifo.json` | FIFO queue priority at a shared price |
-| `stress_test_10000.json` | 10,000-request functional stress dataset |
-| `test_random_250.json`, `test_random_300.json` | Randomized datasets |
+| File                                               | Scenario                                                  |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| `01_limit_orders_resting.json`                   | Non-crossing limit orders rest in the book                |
+| `02_limit_full_match.json`                       | Limit-order matches                                       |
+| `03_limit_partial_fill_remainder.json`           | Partial fills and limit remainders                        |
+| `04_market_buy_multilevel.json`                  | Market buys across ask levels                             |
+| `05_market_sell_multilevel.json`                 | Market sells across bid levels                            |
+| `06_market_insufficient_liquidity.json`          | Market orders with insufficient liquidity                 |
+| `07_same_price_fifo.json`                        | FIFO queue priority at a shared price                     |
+| `stress_test_10000.json`                         | 10,000-request functional stress dataset                  |
+| `test_random_250.json`, `test_random_300.json` | Randomized datasets                                       |
+| `sample_replay.json`                             | Sample replay JSON retained for the legacy browser viewer |
 
 Run all seven designed scenarios, for example:
 
 ```powershell
-.\build\matchingengine.exe .\worklet2\test\01_limit_orders_resting.json
-.\build\matchingengine.exe .\worklet2\test\02_limit_full_match.json
-.\build\matchingengine.exe .\worklet2\test\03_limit_partial_fill_remainder.json
-.\build\matchingengine.exe .\worklet2\test\04_market_buy_multilevel.json
-.\build\matchingengine.exe .\worklet2\test\05_market_sell_multilevel.json
-.\build\matchingengine.exe .\worklet2\test\06_market_insufficient_liquidity.json
-.\build\matchingengine.exe .\worklet2\test\07_same_price_fifo.json
+.\build\matchingengine.exe .\tests\data\01_limit_orders_resting.json
+.\build\matchingengine.exe .\tests\data\02_limit_full_match.json
+.\build\matchingengine.exe .\tests\data\03_limit_partial_fill_remainder.json
+.\build\matchingengine.exe .\tests\data\04_market_buy_multilevel.json
+.\build\matchingengine.exe .\tests\data\05_market_sell_multilevel.json
+.\build\matchingengine.exe .\tests\data\06_market_insufficient_liquidity.json
+.\build\matchingengine.exe .\tests\data\07_same_price_fifo.json
 ```
 
-The generator is [`generate_test_cases.py`](generate_test_cases.py):
+The generator is [`generate_test_cases.py`](tests/generate_test_cases.py):
 
 ```powershell
-python generate_test_cases.py 10000
-python generate_test_cases.py 500 --seed 7
-python generate_test_cases.py 500 --output .\worklet2\test\my_stress_test.json
+python tests\generate_test_cases.py 10000
+python tests\generate_test_cases.py 500 --seed 7
+python tests\generate_test_cases.py 500 --output .\tests\data\my_stress_test.json
 ```
 
 ## Project layout
 
 ```text
-include/, src/                 Worklet 1 data structures
-worklet2/include/, src/        Worklet 2 engine, parser and CLI
-worklet2/test/                 JSON datasets
-worklet3/include/, src/        Worklet 3 events, feed, replay and metrics
-tests/test_main.cpp            Consolidated project tests
-visualizer/                    Legacy browser UI, currently not wired to the CLI
+Limit_Order_Book/
+  include/                      Worklet 1 headers
+  src/                          Worklet 1 implementations
+Matching_Engine/
+  include/                      Worklet 2 headers and JSON dependency
+  src/                          Worklet 2 implementations and CLI entry point
+Testing_and_Performance/
+  include/                      Worklet 3 headers
+  src/                          Worklet 3 implementations and metrics
+tests/
+  test_main.cpp                 Consolidated C++ regression tests
+  generate_test_cases.py        Random JSON dataset generator
+  data/                         All scenario, stress and sample replay JSON files
+visualizer/                     Legacy browser UI; its sample data is in tests/data/
 ```
 
 ## Matching rules

@@ -9,29 +9,32 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Threads REQUIRED)
 
-file(GLOB WORKLET1_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+file(GLOB ORDER_BOOK_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Limit_Order_Book/src/*.cpp"
 )
-file(GLOB WORKLET2_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/worklet2/src/*.cpp"
+file(GLOB MATCHING_ENGINE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Matching_Engine/src/*.cpp"
 )
-file(GLOB WORKLET3_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/worklet3/src/*.cpp"
+list(REMOVE_ITEM MATCHING_ENGINE_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/Matching_Engine/src/main.cpp"
+)
+file(GLOB TESTING_PERFORMANCE_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Testing_and_Performance/src/*.cpp"
 )
 
 add_library(lob_engine STATIC
-    ${WORKLET1_SOURCES}
-    ${WORKLET2_SOURCES}
-    ${WORKLET3_SOURCES}
+    ${ORDER_BOOK_SOURCES}
+    ${MATCHING_ENGINE_SOURCES}
+    ${TESTING_PERFORMANCE_SOURCES}
 )
 target_include_directories(lob_engine PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/worklet2/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/worklet3/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Limit_Order_Book/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Matching_Engine/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Testing_and_Performance/include"
 )
 target_link_libraries(lob_engine PUBLIC Threads::Threads)
 
-add_executable(matchingengine worklet2/main.cpp)
+add_executable(matchingengine Matching_Engine/src/main.cpp)
 target_link_libraries(matchingengine PRIVATE lob_engine)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

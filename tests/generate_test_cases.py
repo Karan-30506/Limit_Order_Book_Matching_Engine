@@ -3,10 +3,10 @@
 Generate random JSON order requests for the Limit Order Book Matching Engine.
 
 Usage:
-    python generate_stress_test.py 500
-    python generate_stress_test.py 10000
-    python generate_stress_test.py 500 --seed 7
-    python generate_stress_test.py 500 --output worklet2/test/custom.json
+    python tests/generate_test_cases.py 500
+    python tests/generate_test_cases.py 10000
+    python tests/generate_test_cases.py 500 --seed 7
+    python tests/generate_test_cases.py 500 --output tests/data/custom.json
 """
 
 import argparse
@@ -58,7 +58,7 @@ def main():
     )
     parser.add_argument(
         "--output",
-        help="optional output path; defaults to test_random_<count>.json in worklet2/test/",
+        help="optional output path; defaults to test_random_<count>.json in tests/data/",
     )
     args = parser.parse_args()
 
@@ -68,7 +68,7 @@ def main():
     output_path = (
         Path(args.output)
         if args.output
-        else Path("worklet2") / "test" / f"test_random_{args.count}.json"
+        else Path(__file__).resolve().parent / "data" / f"test_random_{args.count}.json"
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
