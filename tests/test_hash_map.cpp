@@ -1,4 +1,4 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "Hashmap.hpp"
 #include "Order.hpp"
 #include <string>
@@ -8,6 +8,7 @@
 namespace TestHashMap {
 
 void testConstructionAndInvalidCapacity(TestFramework::TestSuite& suite) {
+
     HashMap<int, int> mapDefault;
     ASSERT_EQ(mapDefault.getSize(), 0);
     ASSERT_EQ(mapDefault.getCapacity(), 16);
@@ -22,6 +23,7 @@ void testConstructionAndInvalidCapacity(TestFramework::TestSuite& suite) {
 }
 
 void testInsertGetContains(TestFramework::TestSuite& suite) {
+
     HashMap<int, std::string> map;
     ASSERT_FALSE(map.contains(10));
     ASSERT_EQ(map.get(10), std::string{});
@@ -48,6 +50,7 @@ void testInsertGetContains(TestFramework::TestSuite& suite) {
 }
 
 void testPointerValues(TestFramework::TestSuite& suite) {
+
     HashMap<int, Order*> map;
     Order o1(101, 500, 10, 1000LL, Side::Buy);
     Order o2(102, 510, 20, 1001LL, Side::Sell);
@@ -71,6 +74,7 @@ void testPointerValues(TestFramework::TestSuite& suite) {
 }
 
 void testRemove(TestFramework::TestSuite& suite) {
+
     HashMap<int, int> map(8);
 
     // Insert elements
@@ -100,6 +104,7 @@ void testRemove(TestFramework::TestSuite& suite) {
 }
 
 void testNegativeAnd64BitKeys(TestFramework::TestSuite& suite) {
+
     HashMap<long long, int> map;
     map.insert(-1LL, 10);
     map.insert(-42LL, 20);
@@ -123,6 +128,7 @@ void testNegativeAnd64BitKeys(TestFramework::TestSuite& suite) {
 }
 
 void testResizingAndRehash(TestFramework::TestSuite& suite) {
+
     // Start with small capacity 4
     HashMap<int, int> map(4);
     ASSERT_EQ(map.getCapacity(), 4);
@@ -166,19 +172,22 @@ void testResizingAndRehash(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("HashMap: Construction and Capacity Checks", [&]() { testConstructionAndInvalidCapacity(suite); });
-    suite.runTest("HashMap: Insert, Get, Contains, and Update", [&]() { testInsertGetContains(suite); });
-    suite.runTest("HashMap: Pointer Values Storage", [&]() { testPointerValues(suite); });
-    suite.runTest("HashMap: Key Removal", [&]() { testRemove(suite); });
-    suite.runTest("HashMap: Negative and 64-bit Keys", [&]() { testNegativeAnd64BitKeys(suite); });
-    suite.runTest("HashMap: Resizing and Rehashing", [&]() { testResizingAndRehash(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "HashMap", {
+        {"testConstructionAndInvalidCapacity", testConstructionAndInvalidCapacity},
+        {"testInsertGetContains", testInsertGetContains},
+        {"testPointerValues", testPointerValues},
+        {"testRemove", testRemove},
+        {"testNegativeAnd64BitKeys", testNegativeAnd64BitKeys},
+        {"testResizingAndRehash", testResizingAndRehash}
+    });
 }
 
 } // namespace TestHashMap
 
 #ifdef STANDALONE_TEST_HASH_MAP
 int main() {
+
     TestFramework::TestSuite suite("HashMap Unit Tests");
     TestHashMap::runAll(suite);
     suite.printSummary();

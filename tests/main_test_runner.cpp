@@ -7,8 +7,10 @@ namespace TestLimitNode { bool runAll(TestFramework::TestSuite& suite); }
 namespace TestAVLTree { bool runAll(TestFramework::TestSuite& suite); }
 namespace TestHashMap { bool runAll(TestFramework::TestSuite& suite); }
 namespace TestBookCombined { bool runAll(TestFramework::TestSuite& suite); }
+namespace TestCsv { bool runAll(TestFramework::TestSuite& suite); }
 
 int main() {
+
     std::cout << "========================================================\n";
     std::cout << "       LIMIT ORDER BOOK ENGINE - COMPREHENSIVE TESTS     \n";
     std::cout << "========================================================\n\n";
@@ -18,6 +20,7 @@ int main() {
     int suitesFailed = 0;
 
     auto runSuite = [&](const std::string& name, auto testRunnerFunc) {
+
         std::cout << ">>> Running " << name << "...\n";
         TestFramework::TestSuite suite(name);
         testRunnerFunc(suite);
@@ -47,6 +50,8 @@ int main() {
 
     // 6. Combined Integration: Limit Order Book
     runSuite("Combined Limit Order Book Tests", TestBookCombined::runAll);
+
+    runSuite("Shared CSV Differential Tests", TestCsv::runAll);
 
     std::cout << "========================================================\n";
     std::cout << "                    OVERALL SUMMARY                     \n";

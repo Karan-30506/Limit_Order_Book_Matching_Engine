@@ -1,10 +1,11 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "LimitNode.hpp"
 #include "Order.hpp"
 
 namespace TestLimitNode {
 
 void testInitialState(TestFramework::TestSuite& suite) {
+
     LimitNode node(150);
     ASSERT_EQ(node.price, 150);
     ASSERT_EQ(node.height, 1);
@@ -17,6 +18,7 @@ void testInitialState(TestFramework::TestSuite& suite) {
 }
 
 void testQueueDelegationAndVolume(TestFramework::TestSuite& suite) {
+
     LimitNode node(200);
 
     Order o1(1, 200, 100, 1000LL, Side::Buy);
@@ -52,15 +54,18 @@ void testQueueDelegationAndVolume(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("LimitNode: Initial State", [&]() { testInitialState(suite); });
-    suite.runTest("LimitNode: Queue Delegation and Volume Aggregation", [&]() { testQueueDelegationAndVolume(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "LimitNode", {
+        {"testInitialState", testInitialState},
+        {"testQueueDelegationAndVolume", testQueueDelegationAndVolume}
+    });
 }
 
 } // namespace TestLimitNode
 
 #ifdef STANDALONE_TEST_LIMIT_NODE
 int main() {
+
     TestFramework::TestSuite suite("LimitNode Unit Tests");
     TestLimitNode::runAll(suite);
     suite.printSummary();

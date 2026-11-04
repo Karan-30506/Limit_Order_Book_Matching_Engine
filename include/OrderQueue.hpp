@@ -2,7 +2,7 @@
 #define ORDER_QUEUE_HPP
 #include "Order.hpp"
 
-// Non-owning FIFO queue. Members must remain alive until detached.
+// Non-owning FIFO queue
 class OrderQueue {
 public:
     Order* head;
@@ -12,6 +12,7 @@ public:
 
     OrderQueue();
     ~OrderQueue(); // detaches, never deletes orders
+    
     OrderQueue(const OrderQueue&) = delete;
     OrderQueue& operator=(const OrderQueue&) = delete;
 

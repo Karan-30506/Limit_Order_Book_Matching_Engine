@@ -1,4 +1,4 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "Book.hpp"
 #include "Order.hpp"
 #include "LimitNode.hpp"
@@ -7,6 +7,7 @@
 namespace TestBookCombined {
 
 void testEmptyBook(TestFramework::TestSuite& suite) {
+
     Book book;
     ASSERT_NULL(book.getBestBid());
     ASSERT_NULL(book.getBestAsk());
@@ -18,6 +19,7 @@ void testEmptyBook(TestFramework::TestSuite& suite) {
 }
 
 void testOrderValidation(TestFramework::TestSuite& suite) {
+
     Book book;
     ASSERT_TRUE(book.isValidNewOrder(1, 100, 10));
     ASSERT_FALSE(book.isValidNewOrder(1, 0, 10));     // price == 0
@@ -37,6 +39,7 @@ void testOrderValidation(TestFramework::TestSuite& suite) {
 }
 
 void testInsertAndPriceTimePriority(TestFramework::TestSuite& suite) {
+
     Book book;
 
     // Insert Bids: 100, 102, 101
@@ -114,6 +117,7 @@ void testInsertAndPriceTimePriority(TestFramework::TestSuite& suite) {
 }
 
 void testCancelOrderAndLevelPruning(TestFramework::TestSuite& suite) {
+
     Book book;
 
     Order* b1 = new Order(1, 100, 10, 1001LL, Side::Buy);
@@ -148,6 +152,7 @@ void testCancelOrderAndLevelPruning(TestFramework::TestSuite& suite) {
 }
 
 void testModifyOrder(TestFramework::TestSuite& suite) {
+
     Book book;
 
     Order* o1 = new Order(1, 100, 10, 1001LL, Side::Buy);
@@ -189,6 +194,7 @@ void testModifyOrder(TestFramework::TestSuite& suite) {
 }
 
 void testPopHeadOrderMatchingSimulation(TestFramework::TestSuite& suite) {
+
     Book book;
 
     // Populate asks (sellers waiting at 100, 101)
@@ -240,6 +246,7 @@ void testPopHeadOrderMatchingSimulation(TestFramework::TestSuite& suite) {
 }
 
 void testCrossedBookSupport(TestFramework::TestSuite& suite) {
+
     Book book;
 
     // Crossed book condition: Bid (110) > Ask (100)
@@ -266,6 +273,7 @@ void testCrossedBookSupport(TestFramework::TestSuite& suite) {
 }
 
 void testBookDestructionCleansOrders(TestFramework::TestSuite& suite) {
+
     // Populate book and let it exit scope to ensure destructor runs cleanly
     {
         Book tempBook;
@@ -283,21 +291,24 @@ void testBookDestructionCleansOrders(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("Book Combined: Empty Book State", [&]() { testEmptyBook(suite); });
-    suite.runTest("Book Combined: Order Validation", [&]() { testOrderValidation(suite); });
-    suite.runTest("Book Combined: Insert and Price-Time Priority", [&]() { testInsertAndPriceTimePriority(suite); });
-    suite.runTest("Book Combined: Cancel Order and Level Pruning", [&]() { testCancelOrderAndLevelPruning(suite); });
-    suite.runTest("Book Combined: Modify Order (Priority Loss & Relocation)", [&]() { testModifyOrder(suite); });
-    suite.runTest("Book Combined: popHeadOrder Matching Simulation", [&]() { testPopHeadOrderMatchingSimulation(suite); });
-    suite.runTest("Book Combined: Crossed Book and Equal-Price Sides", [&]() { testCrossedBookSupport(suite); });
-    suite.runTest("Book Combined: Book Destructor Cleanup", [&]() { testBookDestructionCleansOrders(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "BookCombined", {
+        {"testEmptyBook", testEmptyBook},
+        {"testOrderValidation", testOrderValidation},
+        {"testInsertAndPriceTimePriority", testInsertAndPriceTimePriority},
+        {"testCancelOrderAndLevelPruning", testCancelOrderAndLevelPruning},
+        {"testModifyOrder", testModifyOrder},
+        {"testPopHeadOrderMatchingSimulation", testPopHeadOrderMatchingSimulation},
+        {"testCrossedBookSupport", testCrossedBookSupport},
+        {"testBookDestructionCleansOrders", testBookDestructionCleansOrders}
+    });
 }
 
 } // namespace TestBookCombined
 
 #ifdef STANDALONE_TEST_BOOK_COMBINED
 int main() {
+
     TestFramework::TestSuite suite("Book Combined Integration Tests");
     TestBookCombined::runAll(suite);
     suite.printSummary();

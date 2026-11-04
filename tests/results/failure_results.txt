@@ -1,0 +1,11 @@
+  [PASS] Failure: queueRollback
+  [PASS] Failure: bookRollback
+  [PASS] Failure: avlTransplant
+  [PASS] Failure: hashCollisionsAndLimits
+  [PASS] Failure: hashAllocationRollback
+  [PASS] Failure: insertAllocationRollback
+  [PASS] Failure: modifyAllocationRollback
+  [PASS] Failure: CSV registry
+--------------------------------------------------
+Suite: Failure and allocation rollback tests Summary: 8/8 passed (ALL PASSED)
+--------------------------------------------------

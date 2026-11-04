@@ -1,4 +1,4 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "AVLTree.hpp"
 #include "LimitNode.hpp"
 #include "Order.hpp"
@@ -15,6 +15,7 @@ namespace TestAVLTree {
 // 3. Height property: node->height == 1 + max(h(left), h(right))
 // 4. AVL balance: |h(left) - h(right)| <= 1
 bool verifyAVLInvariants(LimitNode* node, LimitNode* parent, int& calculatedHeight, std::string& error) {
+
     if (!node) {
         calculatedHeight = 0;
         return true;
@@ -67,6 +68,7 @@ bool verifyAVLInvariants(LimitNode* node, LimitNode* parent, int& calculatedHeig
 }
 
 bool checkTree(AVLTree& tree, std::string& error) {
+
     int h = 0;
     if (!verifyAVLInvariants(tree.root, nullptr, h, error)) {
         return false;
@@ -79,6 +81,7 @@ bool checkTree(AVLTree& tree, std::string& error) {
 }
 
 void testEmptyTree(TestFramework::TestSuite& suite) {
+
     AVLTree tree;
     ASSERT_NULL(tree.root);
     ASSERT_TRUE(tree.isEmpty());
@@ -88,6 +91,7 @@ void testEmptyTree(TestFramework::TestSuite& suite) {
 }
 
 void testDuplicateInsert(TestFramework::TestSuite& suite) {
+
     AVLTree tree;
     LimitNode* node1 = tree.insert(100);
     ASSERT_NOT_NULL(node1);
@@ -105,6 +109,7 @@ void testDuplicateInsert(TestFramework::TestSuite& suite) {
 }
 
 void testRotations(TestFramework::TestSuite& suite) {
+
     // 1. Right rotation (Left-Left case): 30, 20, 10
     {
         AVLTree tree;
@@ -179,6 +184,7 @@ void testRotations(TestFramework::TestSuite& suite) {
 }
 
 void testSuccessorAndPredecessor(TestFramework::TestSuite& suite) {
+
     AVLTree tree;
     // Insert values: 10, 20, 30, 40, 50, 60, 70
     std::vector<int> prices = {40, 20, 60, 10, 30, 50, 70};
@@ -216,6 +222,7 @@ void testSuccessorAndPredecessor(TestFramework::TestSuite& suite) {
 }
 
 void testRemove(TestFramework::TestSuite& suite) {
+
     AVLTree tree;
     LimitNode* n20 = tree.insert(20);
     LimitNode* n10 = tree.insert(10);
@@ -262,6 +269,7 @@ void testRemove(TestFramework::TestSuite& suite) {
 }
 
 void testStressBalance(TestFramework::TestSuite& suite) {
+
     AVLTree tree;
     std::vector<int> values;
     for (int i = 1; i <= 63; ++i) {
@@ -303,19 +311,22 @@ void testStressBalance(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("AVLTree: Empty Tree State", [&]() { testEmptyTree(suite); });
-    suite.runTest("AVLTree: Duplicate Insert", [&]() { testDuplicateInsert(suite); });
-    suite.runTest("AVLTree: Rotations (LL, RR, LR, RL)", [&]() { testRotations(suite); });
-    suite.runTest("AVLTree: Successor and Predecessor", [&]() { testSuccessorAndPredecessor(suite); });
-    suite.runTest("AVLTree: Node Removal Variations", [&]() { testRemove(suite); });
-    suite.runTest("AVLTree: Stress Balance and Invariants", [&]() { testStressBalance(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "AVLTree", {
+        {"testEmptyTree", testEmptyTree},
+        {"testDuplicateInsert", testDuplicateInsert},
+        {"testRotations", testRotations},
+        {"testSuccessorAndPredecessor", testSuccessorAndPredecessor},
+        {"testRemove", testRemove},
+        {"testStressBalance", testStressBalance}
+    });
 }
 
 } // namespace TestAVLTree
 
 #ifdef STANDALONE_TEST_AVL_TREE
 int main() {
+
     TestFramework::TestSuite suite("AVLTree Unit Tests");
     TestAVLTree::runAll(suite);
     suite.printSummary();

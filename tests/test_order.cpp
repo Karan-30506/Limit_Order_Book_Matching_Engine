@@ -1,4 +1,4 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "Order.hpp"
 #include "OrderQueue.hpp"
 #include "LimitNode.hpp"
@@ -7,6 +7,7 @@
 namespace TestOrder {
 
 void testConstructors(TestFramework::TestSuite& suite) {
+
     Order order1(101, 1500, 50, 1620000000LL, Side::Sell);
     ASSERT_EQ(order1.id, 101);
     ASSERT_EQ(order1.price, 1500);
@@ -34,6 +35,7 @@ void testConstructors(TestFramework::TestSuite& suite) {
 }
 
 void testIsFullyFilled(TestFramework::TestSuite& suite) {
+
     Order order(1, 100, 10, 1000LL, Side::Buy);
     ASSERT_FALSE(order.isFullyFilled());
 
@@ -47,6 +49,7 @@ void testIsFullyFilled(TestFramework::TestSuite& suite) {
 }
 
 void testReduceQuantityDetached(TestFramework::TestSuite& suite) {
+
     Order order(1, 100, 25, 1000LL, Side::Buy);
 
     // Reduction of 0 shares is valid
@@ -75,6 +78,7 @@ void testReduceQuantityDetached(TestFramework::TestSuite& suite) {
 }
 
 void testReduceQuantityAttached(TestFramework::TestSuite& suite) {
+
     LimitNode limitNode(100);
     Order order(1, 100, 50, 1000LL, Side::Buy);
 
@@ -103,17 +107,20 @@ void testReduceQuantityAttached(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("Order: Constructors and Initial State", [&]() { testConstructors(suite); });
-    suite.runTest("Order: isFullyFilled Check", [&]() { testIsFullyFilled(suite); });
-    suite.runTest("Order: reduceQuantity Detached", [&]() { testReduceQuantityDetached(suite); });
-    suite.runTest("Order: reduceQuantity Attached to Queue", [&]() { testReduceQuantityAttached(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "Order", {
+        {"testConstructors", testConstructors},
+        {"testIsFullyFilled", testIsFullyFilled},
+        {"testReduceQuantityDetached", testReduceQuantityDetached},
+        {"testReduceQuantityAttached", testReduceQuantityAttached}
+    });
 }
 
 } // namespace TestOrder
 
 #ifdef STANDALONE_TEST_ORDER
 int main() {
+
     TestFramework::TestSuite suite("Order Unit Tests");
     TestOrder::runAll(suite);
     suite.printSummary();

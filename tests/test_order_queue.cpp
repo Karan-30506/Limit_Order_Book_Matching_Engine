@@ -1,4 +1,4 @@
-#include "test_framework.hpp"
+#include "csv_cases.hpp"
 #include "OrderQueue.hpp"
 #include "LimitNode.hpp"
 #include <limits>
@@ -7,6 +7,7 @@
 namespace TestOrderQueue {
 
 void testEmptyQueue(TestFramework::TestSuite& suite) {
+
     OrderQueue queue;
     ASSERT_NULL(queue.head);
     ASSERT_NULL(queue.tail);
@@ -23,6 +24,7 @@ void testEmptyQueue(TestFramework::TestSuite& suite) {
 }
 
 void testPushBackValidation(TestFramework::TestSuite& suite) {
+
     LimitNode node1(100);
     LimitNode node2(100);
     OrderQueue& q1 = node1.queue;
@@ -53,6 +55,7 @@ void testPushBackValidation(TestFramework::TestSuite& suite) {
 }
 
 void testPushAndPopFIFO(TestFramework::TestSuite& suite) {
+
     LimitNode node(100);
     OrderQueue& q = node.queue;
 
@@ -122,6 +125,7 @@ void testPushAndPopFIFO(TestFramework::TestSuite& suite) {
 }
 
 void testRemoveVariants(TestFramework::TestSuite& suite) {
+
     LimitNode node(100);
     OrderQueue& q = node.queue;
 
@@ -180,6 +184,7 @@ void testRemoveVariants(TestFramework::TestSuite& suite) {
 }
 
 void testReduceQuantity(TestFramework::TestSuite& suite) {
+
     LimitNode node(100);
     OrderQueue& q = node.queue;
 
@@ -214,6 +219,7 @@ void testReduceQuantity(TestFramework::TestSuite& suite) {
 }
 
 void testDestructorDetachesOrders(TestFramework::TestSuite& suite) {
+
     Order o1(1, 100, 10, 1001LL, Side::Buy);
     Order o2(2, 100, 20, 1002LL, Side::Buy);
 
@@ -237,6 +243,7 @@ void testDestructorDetachesOrders(TestFramework::TestSuite& suite) {
 }
 
 void testOverflowProtection(TestFramework::TestSuite& suite) {
+
     LimitNode node(100);
     OrderQueue& q = node.queue;
 
@@ -250,20 +257,23 @@ void testOverflowProtection(TestFramework::TestSuite& suite) {
 }
 
 bool runAll(TestFramework::TestSuite& suite) {
-    suite.runTest("OrderQueue: Empty Queue State", [&]() { testEmptyQueue(suite); });
-    suite.runTest("OrderQueue: pushBack Validations", [&]() { testPushBackValidation(suite); });
-    suite.runTest("OrderQueue: FIFO Push and Pop", [&]() { testPushAndPopFIFO(suite); });
-    suite.runTest("OrderQueue: Remove Variations (Head, Middle, Tail, Singleton)", [&]() { testRemoveVariants(suite); });
-    suite.runTest("OrderQueue: reduceQuantity on Head", [&]() { testReduceQuantity(suite); });
-    suite.runTest("OrderQueue: Non-owning Destructor Detachment", [&]() { testDestructorDetachesOrders(suite); });
-    suite.runTest("OrderQueue: Overflow Protection", [&]() { testOverflowProtection(suite); });
-    return suite.allPassed();
+
+    return CsvCases::run(suite, "OrderQueue", {
+        {"testEmptyQueue", testEmptyQueue},
+        {"testPushBackValidation", testPushBackValidation},
+        {"testPushAndPopFIFO", testPushAndPopFIFO},
+        {"testRemoveVariants", testRemoveVariants},
+        {"testReduceQuantity", testReduceQuantity},
+        {"testDestructorDetachesOrders", testDestructorDetachesOrders},
+        {"testOverflowProtection", testOverflowProtection}
+    });
 }
 
 } // namespace TestOrderQueue
 
 #ifdef STANDALONE_TEST_ORDER_QUEUE
 int main() {
+
     TestFramework::TestSuite suite("OrderQueue Unit Tests");
     TestOrderQueue::runAll(suite);
     suite.printSummary();
