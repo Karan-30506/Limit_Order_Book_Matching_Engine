@@ -22,7 +22,23 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The build produces `build/matchingengine.exe` and the consolidated `lob_tests` CTest target.
+The build produces `build/matchingengine.exe` and the `lob_tests` and `engine_service_tests` CTest targets. When configured with `BUILD_QT_GUI=ON`, it also builds `lob_gui` and `engine_worker_tests`.
+
+## Optional Qt GUI
+
+The desktop application is an optional target and does not change the CLI or tests. On Windows, install a Qt 6 SDK whose compiler matches the selected CMake toolchain (for example, Qt's MinGW kit with `MinGW Makefiles`, or an MSVC kit with an MSVC generator). Set `CMAKE_PREFIX_PATH` to the Qt kit if CMake cannot locate it. CMake downloads and builds the pinned QCustomPlot source when the GUI is enabled; it does not install the Qt SDK itself. The GUI uses a single-window navigation layout instead of dock widgets, so ADS is not needed for this interface.
+
+Before distributing the GUI, check the license terms of the Qt SDK and fetched libraries; QCustomPlot's source archive includes GPL licensing terms.
+
+Configure, build and run the GUI with:
+
+```powershell
+cmake -S . -B build-gui -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_QT_GUI=ON -DCMAKE_PREFIX_PATH="C:\Qt\6.x.x\mingw_64"
+cmake --build build-gui --target lob_gui
+.\build-gui\lob_gui.exe
+```
+
+Replace the example Qt path with the installed kit. The GUI opens maximized and uses a top navigation bar to show one full-size page at a time. The Order Book page has separately colored buy/sell AVL trees, zoom controls and tabs for price levels, FIFO queue, open orders and recent trades. Clicking a rendered tree node opens the FIFO Queue tab for that level. The Orders page pairs order-entry controls with live open-order and execution tables. Replay provides event-log inspection, forward stepping and final reconstructed-book comparison. Metrics shows session rates, recent latency percentiles, activity/latency charts and Worklet 3 feed health. CSV Viewer displays CSV data and colors `side` values when present. Switch between engine-only and full-system mode on the Order Book page. Full-system mode records events and publishes them to the Worklet 3 feed; replay remains a separate reconstruction view.
 
 ## Run modes
 

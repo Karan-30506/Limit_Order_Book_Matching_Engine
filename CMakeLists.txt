@@ -42,6 +42,52 @@ target_link_libraries(lob_engine PUBLIC lob_core Threads::Threads)
 add_executable(matchingengine Matching_Engine/src/main.cpp)
 target_link_libraries(matchingengine PRIVATE lob_engine)
 
+option(BUILD_QT_GUI "Build the Qt 6 desktop application" OFF)
+if(BUILD_QT_GUI)
+    find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets OpenGLWidgets PrintSupport)
+
+    include(FetchContent)
+
+    FetchContent_Declare(
+        qcustomplot_source
+        URL https://www.qcustomplot.com/release/2.1.1/QCustomPlot-source.tar.gz
+        URL_HASH SHA256=5E2D22DEC779DB8F01F357CBDB25E54FBCF971ADAEE75EAE8D7AD2444487182F
+    )
+    if(POLICY CMP0135)
+        cmake_policy(SET CMP0135 NEW)
+    endif()
+    FetchContent_GetProperties(qcustomplot_source)
+    if(NOT qcustomplot_source_POPULATED)
+        FetchContent_Populate(qcustomplot_source)
+    endif()
+
+    add_library(qcustomplot STATIC
+        "${qcustomplot_source_SOURCE_DIR}/qcustomplot.cpp"
+        "${qcustomplot_source_SOURCE_DIR}/qcustomplot.h"
+    )
+    set_target_properties(qcustomplot PROPERTIES AUTOMOC ON)
+    target_link_libraries(qcustomplot PUBLIC Qt6::Widgets Qt6::PrintSupport)
+    target_include_directories(qcustomplot PUBLIC "${qcustomplot_source_SOURCE_DIR}")
+
+    add_executable(lob_gui
+        GUI/src/main.cpp
+        GUI/src/MainWindow.cpp
+        GUI/src/EngineService.cpp
+        GUI/src/EngineWorker.cpp
+        GUI/include/MainWindow.hpp
+        GUI/include/EngineService.hpp
+        GUI/include/EngineWorker.hpp
+    )
+    set_target_properties(lob_gui PROPERTIES AUTOMOC ON)
+    target_include_directories(lob_gui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include")
+    target_link_libraries(lob_gui PRIVATE
+        lob_engine
+        Qt6::Widgets
+        Qt6::OpenGLWidgets
+        qcustomplot
+    )
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(lob_core PRIVATE
         -Wall -Wextra -Wpedantic
@@ -52,6 +98,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(matchingengine PRIVATE
         -Wall -Wextra -Wpedantic
     )
+    if(TARGET lob_gui)
+        target_compile_options(lob_gui PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
 endif()
 
 include(CTest)
@@ -67,4 +116,43 @@ if(BUILD_TESTING)
     set_tests_properties(lob_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     )
+    add_executable(engine_service_tests
+        tests/engine_service_test.cpp
+        GUI/src/EngineService.cpp
+    )
+    target_include_directories(engine_service_tests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include"
+    )
+    target_link_libraries(engine_service_tests PRIVATE lob_engine)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(engine_service_tests PRIVATE
+            -Wall -Wextra -Wpedantic
+        )
+    endif()
+    add_test(NAME engine_service_tests COMMAND engine_service_tests)
+    set_tests_properties(engine_service_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    )
+    if(TARGET lob_gui)
+        add_executable(engine_worker_tests
+            tests/engine_worker_test.cpp
+            GUI/src/EngineService.cpp
+            GUI/src/EngineWorker.cpp
+            GUI/include/EngineWorker.hpp
+        )
+        set_target_properties(engine_worker_tests PROPERTIES AUTOMOC ON)
+        target_include_directories(engine_worker_tests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/GUI/include"
+        )
+        target_link_libraries(engine_worker_tests PRIVATE lob_engine Qt6::Core)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(engine_worker_tests PRIVATE
+                -Wall -Wextra -Wpedantic
+            )
+        endif()
+        add_test(NAME engine_worker_tests COMMAND engine_worker_tests)
+        set_tests_properties(engine_worker_tests PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        )
+    endif()
 endif()
