@@ -18,6 +18,9 @@ struct OrderCommand {
     long long timestamp = 0;
     Side side = Side::Buy;
     OrderType type = OrderType::Limit;
+    QString originalType;
+    QString originalSide;
+    bool hasOriginalInput = false;
 };
 
 struct OrderOutcomeSnapshot {
@@ -29,6 +32,10 @@ struct OrderOutcomeSnapshot {
     int remainingQuantity = 0;
     bool accepted = false;
     QString reason;
+    int price = 0;
+    QString originalType;
+    QString originalSide;
+    bool hasOriginalInput = false;
 };
 
 struct ReplayEventSnapshot {

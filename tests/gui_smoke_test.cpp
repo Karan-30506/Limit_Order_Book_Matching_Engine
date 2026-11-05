@@ -5,7 +5,9 @@
 #include <QApplication>
 #include <QDebug>
 #include <QEventLoop>
+#include <QHeaderView>
 #include <QLabel>
+#include <QTableWidget>
 #include <QTimer>
 
 #include <iostream>
@@ -24,6 +26,16 @@ int main(int argc, char* argv[]) {
     auto* activityPlot = window.findChild<QCustomPlot*>(QStringLiteral("activityPlot"));
     if (!latencyPlot || !activityPlot) {
         std::cerr << "GUI smoke test failed: metric charts were not created.\n";
+        return 1;
+    }
+    auto* orderHistory = window.findChild<QTableWidget*>(
+        QStringLiteral("orderHistoryTable"));
+    if (!orderHistory ||
+        orderHistory->horizontalScrollBarPolicy() != Qt::ScrollBarAsNeeded ||
+        orderHistory->horizontalHeader()->sectionResizeMode(0) != QHeaderView::Interactive ||
+        orderHistory->columnCount() != 8 ||
+        orderHistory->horizontalHeaderItem(3)->text() != QStringLiteral("Price")) {
+        std::cerr << "GUI smoke test failed: order history is not horizontally scrollable.\n";
         return 1;
     }
 

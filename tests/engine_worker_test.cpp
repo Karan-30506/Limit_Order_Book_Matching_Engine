@@ -2,7 +2,9 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
 #include <QEventLoop>
+#include <QTemporaryFile>
 #include <QThread>
 #include <QTimer>
 
@@ -55,15 +57,16 @@ int main(int argc, char* argv[]) {
                     operationLoop.quit();
                 });
 
-            worker->submit({1, 100, 5, 1, Side::Buy, OrderType::Limit}, 1);
+            worker->submit(
+                {1, 100, 5, 1, Side::Buy, OrderType::Limit, {}, {}, false}, 1);
             require(waitForReply(operationLoop, received) && reply.success &&
                     reply.snapshot.openOrders.size() == 1,
                     "worker submission did not return a value snapshot");
 
             received = false;
             worker->submitBatch({
-                {2, 99, 2, 2, Side::Sell, OrderType::Limit},
-                {3, 101, 4, 3, Side::Buy, OrderType::Limit}
+                {2, 99, 2, 2, Side::Sell, OrderType::Limit, {}, {}, false},
+                {3, 101, 4, 3, Side::Buy, OrderType::Limit, {}, {}, false}
             }, 2);
             require(waitForReply(operationLoop, received) && reply.batch &&
                     reply.submittedCount == 2 && reply.acceptedCount == 2 &&
@@ -83,6 +86,53 @@ int main(int argc, char* argv[]) {
                     reply.snapshot.openOrders.front().price == 102 &&
                     reply.snapshot.openOrders.front().quantity == 2,
                     "worker modification did not update its snapshot");
+
+            QTemporaryFile invalidOrderFile(
+                QDir::tempPath() + QStringLiteral("/lob-invalid-order-XXXXXX.json"));
+            require(invalidOrderFile.open(),
+                    "could not create invalid-order parser fixture");
+            const QByteArray invalidOrderJson =
+                "[{\"id\":-9001,\"type\":\"ICEBERG-42\",\"side\":\"AUCTION-SIDE\","
+                "\"price\":-86,\"quantity\":-3},"
+                "{\"id\":-9002,\"type\":\"\",\"side\":\"\","
+                "\"price\":-87,\"quantity\":-4}]";
+            require(invalidOrderFile.write(invalidOrderJson) == invalidOrderJson.size(),
+                    "could not write invalid-order parser fixture");
+            require(invalidOrderFile.flush(),
+                    "could not flush invalid-order parser fixture");
+
+            received = false;
+            worker->parseOrders(invalidOrderFile.fileName(), 5);
+            require(waitForReply(operationLoop, received) && reply.success &&
+                    reply.parsedOrders.size() == 2,
+                    "order parser did not return the invalid order");
+            require(reply.parsedOrders.front().originalType == QStringLiteral("ICEBERG-42") &&
+                    reply.parsedOrders.front().originalSide == QStringLiteral("AUCTION-SIDE") &&
+                    reply.parsedOrders.front().hasOriginalInput &&
+                    reply.parsedOrders.back().originalType.isEmpty() &&
+                    reply.parsedOrders.back().originalSide.isEmpty() &&
+                    reply.parsedOrders.back().hasOriginalInput,
+                    "order parser did not preserve arbitrary type and side values");
+            require(reply.parsedOrders.front().id == -9001 &&
+                    reply.parsedOrders.front().price == -86 &&
+                    reply.parsedOrders.front().quantity == -3,
+                    "order parser did not preserve invalid numeric values");
+
+            received = false;
+            worker->submitBatch(reply.parsedOrders, 6);
+            require(waitForReply(operationLoop, received) && reply.batch &&
+                    reply.outcomes.size() == 2 && !reply.outcomes.front().accepted &&
+                    reply.outcomes.front().originalType == QStringLiteral("ICEBERG-42") &&
+                    reply.outcomes.front().originalSide == QStringLiteral("AUCTION-SIDE") &&
+                    reply.outcomes.front().hasOriginalInput &&
+                    reply.outcomes.front().id == -9001 &&
+                    reply.outcomes.front().price == -86 &&
+                    reply.outcomes.front().requestedQuantity == -3,
+                    "rejected order outcome did not preserve original input fields");
+            require(reply.outcomes.back().originalType.isEmpty() &&
+                    reply.outcomes.back().originalSide.isEmpty() &&
+                    reply.outcomes.back().hasOriginalInput,
+                    "rejected order outcome replaced empty original fields");
         } catch (...) {
             thread.quit();
             thread.wait();

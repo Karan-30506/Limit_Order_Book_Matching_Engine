@@ -60,7 +60,9 @@ std::vector<OrderOutcomeSnapshot> buildOutcomes(
             }
         }
         outcomes.push_back({command.id, command.side, command.type,
-                            command.quantity, filled, remaining, accepted, reason});
+                            command.quantity, filled, remaining, accepted, reason,
+                            command.price, command.originalType, command.originalSide,
+                            command.hasOriginalInput});
     }
     return outcomes;
 }
@@ -296,8 +298,12 @@ void EngineWorker::parseOrders(QString path, std::uint64_t requestID) {
                 }
                 reply.parsedOrders.reserve(requests.size());
                 for (const OrderRequest& request : requests) {
-                    reply.parsedOrders.push_back({request.id, request.price,
-                        request.quantity, 0, request.side, request.type});
+                    OrderCommand command{request.id, request.price,
+                        request.quantity, 0, request.side, request.type, {}, {}, false};
+                    command.originalType = QString::fromStdString(request.originalType);
+                    command.originalSide = QString::fromStdString(request.originalSide);
+                    command.hasOriginalInput = true;
+                    reply.parsedOrders.push_back(std::move(command));
                 }
                 for (const ParserRejection& rejection : rejections) {
                     reply.parseWarnings.push_back(QStringLiteral("Record %1: %2")
@@ -350,15 +356,21 @@ void EngineWorker::parseOrders(QString path, std::uint64_t requestID) {
                         emit operationCompleted(reply);
                         return;
                     }
-                    const QString typeText = fields[1].trimmed().toUpper();
-                    const QString sideText = fields[2].trimmed().toUpper();
+                    const QString originalType = fields[1];
+                    const QString originalSide = fields[2];
+                    const QString typeText = originalType.trimmed().toUpper();
+                    const QString sideText = originalSide.trimmed().toUpper();
                     const OrderType type = typeText == QStringLiteral("LIMIT")
                         ? OrderType::Limit : typeText == QStringLiteral("MARKET")
                         ? OrderType::Market : static_cast<OrderType>(-1);
                     const Side side = sideText == QStringLiteral("BUY")
                         ? Side::Buy : sideText == QStringLiteral("SELL")
                         ? Side::Sell : static_cast<Side>(-1);
-                    reply.parsedOrders.push_back({id, price, quantity, 0, side, type});
+                    OrderCommand command{id, price, quantity, 0, side, type, {}, {}, false};
+                    command.originalType = originalType;
+                    command.originalSide = originalSide;
+                    command.hasOriginalInput = true;
+                    reply.parsedOrders.push_back(std::move(command));
                 }
             } else {
                 reply.message = QStringLiteral("Unsupported order file type.");

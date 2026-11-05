@@ -273,7 +273,7 @@ CMake writes generated files and executables to the directory passed after `-B`;
 
 Other folders such as `build-gui-qt\` and `build-gui-verify\` are separate build trees created by earlier verification attempts with different toolchain/configuration settings. They are not required and are not kept synchronized with `build-gui\`. To avoid launching an outdated GUI, rebuild and run from the same directory: `cmake --build build-gui --parallel`, then `.\build-gui\lob_gui.exe`.
 
-The GUI has single-window navigation for the order book, order management, replay, metrics and CSV viewing. It displays separate buy/sell trees with FIFO queue inspection, supports order operations and JSON/CSV order loading, and provides forward replay controls, event browsing, charts and metrics export. GUI throughput charts measure session rates and include idle time; use CLI runs for performance measurements.
+The GUI has single-window navigation for the order book, order management, replay, metrics and CSV viewing. It displays separate buy/sell trees with FIFO queue inspection, supports order operations and JSON/CSV order loading, and provides forward replay controls, event browsing, charts and metrics export. Order history can be scrolled horizontally when the full set of columns does not fit. In full-system mode, the GUI writes its current Worklet 3 event stream to `lob_gui_events.log` in its working directory. **Export run metrics CSV** saves the summary and retained latency samples; the GUI does not currently generate the CLI's per-order `*_logs.log` or `*_reject.log` files. GUI throughput charts measure session rates and include idle time; use CLI runs for performance measurements.
 
 ## Specifications and performance
 

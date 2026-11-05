@@ -144,6 +144,11 @@ QString sideName(Side side) {
     return side == Side::Buy ? QStringLiteral("BUY") : QStringLiteral("SELL");
 }
 
+QString orderTypeName(OrderType type) {
+    return type == OrderType::Limit ? QStringLiteral("LIMIT")
+                                   : QStringLiteral("MARKET");
+}
+
 QString eventTypeName(EventType type) {
     switch (type) {
     case EventType::NEW_ORDER: return QStringLiteral("NEW ORDER");
@@ -610,9 +615,20 @@ QWidget* MainWindow::createOrderPanel() {
         QStringLiteral("Sell ID"), QStringLiteral("Price"), QStringLiteral("Quantity")});
     activityTabs->addTab(orderPageTradesTable_, QStringLiteral("Recent executions"));
     orderHistoryTable_ = new QTableWidget;
+    orderHistoryTable_->setObjectName(QStringLiteral("orderHistoryTable"));
     configureTable(orderHistoryTable_, {QStringLiteral("Order ID"), QStringLiteral("Side"),
-        QStringLiteral("Type"), QStringLiteral("Requested"), QStringLiteral("Executed"),
-        QStringLiteral("Remaining"), QStringLiteral("Outcome")});
+        QStringLiteral("Type"), QStringLiteral("Price"), QStringLiteral("Requested"),
+        QStringLiteral("Executed"), QStringLiteral("Remaining"), QStringLiteral("Outcome")});
+    orderHistoryTable_->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    orderHistoryTable_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    orderHistoryTable_->setColumnWidth(0, 100);
+    orderHistoryTable_->setColumnWidth(1, 90);
+    orderHistoryTable_->setColumnWidth(2, 120);
+    orderHistoryTable_->setColumnWidth(3, 90);
+    orderHistoryTable_->setColumnWidth(4, 110);
+    orderHistoryTable_->setColumnWidth(5, 110);
+    orderHistoryTable_->setColumnWidth(6, 110);
+    orderHistoryTable_->setColumnWidth(7, 360);
     activityTabs->addTab(orderHistoryTable_, QStringLiteral("Order history"));
     activityLayout->addWidget(activityTabs);
     splitter->addWidget(activityPanel);
@@ -1029,7 +1045,8 @@ void MainWindow::submitOrder() {
         idInput_->value(), priceInput_->value(), quantityInput_->value(),
         static_cast<long long>(nextTimestamp_++),
         sideCombo_->currentIndex() == 0 ? Side::Buy : Side::Sell,
-        typeCombo_->currentIndex() == 0 ? OrderType::Limit : OrderType::Market};
+        typeCombo_->currentIndex() == 0 ? OrderType::Limit : OrderType::Market,
+        {}, {}, false};
     engineWorker_->submit(command, nextRequestID_++);
 }
 
@@ -1439,18 +1456,22 @@ void MainWindow::handleEngineReply(const EngineReply& reply) {
         for (const OrderOutcomeSnapshot& outcome : reply.outcomes) {
             const int row = orderHistoryTable_->rowCount();
             orderHistoryTable_->insertRow(row);
-            const QString values[] = {QString::number(outcome.id), sideName(outcome.side),
-                outcome.type == OrderType::Limit ? QStringLiteral("LIMIT")
-                                                 : QStringLiteral("MARKET"),
+            const QString values[] = {
+                QString::number(outcome.id),
+                outcome.hasOriginalInput ? outcome.originalSide : sideName(outcome.side),
+                outcome.hasOriginalInput ? outcome.originalType : orderTypeName(outcome.type),
+                QString::number(outcome.price),
                 QString::number(outcome.requestedQuantity),
                 QString::number(outcome.executedQuantity),
                 QString::number(outcome.remainingQuantity), outcome.reason};
-            for (int column = 0; column < 7; ++column) {
+            for (int column = 0; column < 8; ++column) {
                 orderHistoryTable_->setItem(row, column, tableItem(values[column]));
             }
-            orderHistoryTable_->item(row, 1)->setForeground(sideColor(outcome.side));
+            if (outcome.side == Side::Buy || outcome.side == Side::Sell) {
+                orderHistoryTable_->item(row, 1)->setForeground(sideColor(outcome.side));
+            }
             if (!outcome.accepted) {
-                orderHistoryTable_->item(row, 6)->setForeground(QColor("#f38ba8"));
+                orderHistoryTable_->item(row, 7)->setForeground(QColor("#f38ba8"));
             }
         }
         applyBookSnapshot(reply.snapshot);
@@ -1492,18 +1513,22 @@ void MainWindow::handleEngineReply(const EngineReply& reply) {
     for (const OrderOutcomeSnapshot& outcome : reply.outcomes) {
         const int row = orderHistoryTable_->rowCount();
         orderHistoryTable_->insertRow(row);
-        const QString values[] = {QString::number(outcome.id), sideName(outcome.side),
-            outcome.type == OrderType::Limit ? QStringLiteral("LIMIT")
-                                             : QStringLiteral("MARKET"),
+        const QString values[] = {
+            QString::number(outcome.id),
+            outcome.hasOriginalInput ? outcome.originalSide : sideName(outcome.side),
+            outcome.hasOriginalInput ? outcome.originalType : orderTypeName(outcome.type),
+            QString::number(outcome.price),
             QString::number(outcome.requestedQuantity),
             QString::number(outcome.executedQuantity),
             QString::number(outcome.remainingQuantity), outcome.reason};
-        for (int column = 0; column < 7; ++column) {
+        for (int column = 0; column < 8; ++column) {
             orderHistoryTable_->setItem(row, column, tableItem(values[column]));
         }
-        orderHistoryTable_->item(row, 1)->setForeground(sideColor(outcome.side));
+        if (outcome.side == Side::Buy || outcome.side == Side::Sell) {
+            orderHistoryTable_->item(row, 1)->setForeground(sideColor(outcome.side));
+        }
         if (!outcome.accepted) {
-            orderHistoryTable_->item(row, 6)->setForeground(QColor("#f38ba8"));
+            orderHistoryTable_->item(row, 7)->setForeground(QColor("#f38ba8"));
         }
     }
     if (!reply.message.isEmpty()) {

@@ -7,7 +7,7 @@
     "quantity": 488
   },
   {
-    "id": 100002,
+    "id": 100001,
     "type": "LIMIT",
     "side": "SELL",
     "price": 93,
@@ -24,7 +24,7 @@
     "id": 100004,
     "type": "LIMIT",
     "side": "SELL",
-    "price": 86,
+    "price": -86,
     "quantity": 83
   },
   {
@@ -36,7 +36,7 @@
   },
   {
     "id": 100006,
-    "type": "LIMIT",
+    "type": "NON-LIMIT",
     "side": "SELL",
     "price": 112,
     "quantity": 258
