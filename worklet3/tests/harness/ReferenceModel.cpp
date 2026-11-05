@@ -1,3 +1,4 @@
+// This simple order book is used to compare results with the real engine.
 #include "ReferenceModel.hpp"
 
 #include <algorithm>

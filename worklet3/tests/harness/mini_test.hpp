@@ -1,3 +1,5 @@
+// This small test helper stores the tests, checks their results, and prints
+// which tests passed or failed.
 #ifndef WORKLET3_MINI_TEST_HPP
 #define WORKLET3_MINI_TEST_HPP
 

@@ -1,3 +1,4 @@
+// Reads JSON test steps and checks that the book and matching engine behave as expected.
 #include "ScenarioRunner.hpp"
 
 #include <fstream>

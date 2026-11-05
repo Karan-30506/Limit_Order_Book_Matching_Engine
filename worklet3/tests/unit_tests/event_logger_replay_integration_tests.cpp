@@ -1,3 +1,5 @@
+// Checks that events can be logged, read from disk, sent to the feed,
+// and replayed.
 #include "EventLoggerIntegration.hpp"
 #include "replayEngine.hpp"
 

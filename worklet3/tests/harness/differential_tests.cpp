@@ -36,7 +36,7 @@ std::string describe(const std::string& what, int step) {
     return what + " at step " + std::to_string(step);
 }
 
-} // namespace
+} 
 
 PARAM_TEST(Differential, EngineMatchesReference, kProfiles, [](const Profile& p) {
     Book book;

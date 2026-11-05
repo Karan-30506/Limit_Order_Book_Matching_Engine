@@ -1,4 +1,4 @@
-
+// Checks replay of book events and how it handles invalid or incomplete data.
 #include "replayEngine.hpp"
 #include "Book.hpp"
 

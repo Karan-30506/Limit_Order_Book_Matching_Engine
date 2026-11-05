@@ -1,3 +1,4 @@
+// Checks percentile, latency, and benchmark result calculations.
 #include "Benchmark.hpp"
 
 #include <cassert>

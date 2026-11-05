@@ -1,3 +1,4 @@
+// Declares the simple order book used by the differential tests.
 #ifndef WORKLET3_REFERENCE_MODEL_HPP
 #define WORKLET3_REFERENCE_MODEL_HPP
 

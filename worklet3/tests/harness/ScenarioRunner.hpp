@@ -1,3 +1,4 @@
+// Declares the result and functions used to run JSON scenarios.
 #ifndef WORKLET3_SCENARIO_RUNNER_HPP
 #define WORKLET3_SCENARIO_RUNNER_HPP
 

@@ -1,3 +1,5 @@
+// Tests a full order flow, from matching and logging through feed delivery
+// and replay.
 #include "EventLoggerIntegration.hpp"
 #include "replayEngine.hpp"
 

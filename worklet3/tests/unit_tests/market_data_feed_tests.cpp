@@ -1,3 +1,5 @@
+// Checks publishing, reading, buffer overflow, stats, and concurrent
+// publishers.
 #include "MarketDataFeed.hpp"
 
 #include <cassert>

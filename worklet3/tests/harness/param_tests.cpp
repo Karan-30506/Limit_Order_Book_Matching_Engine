@@ -1,4 +1,4 @@
-// Parametrized (table-driven) tests: each row is one case with a label.
+// Tests order validation and matching with different inputs from tables.
 #include <climits>
 #include <string>
 #include <vector>

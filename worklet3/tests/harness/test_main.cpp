@@ -1,3 +1,4 @@
+// Starts the harness tests. A name given on the command line can filter them.
 #include "mini_test.hpp"
 
 // Usage: worklet3_harness [name-filter], e.g. worklet3_harness Validator
